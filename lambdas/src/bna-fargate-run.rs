@@ -3,12 +3,10 @@ use aws_sdk_ecs::types::{
     AssignPublicIp, AwsVpcConfiguration, ContainerOverride, KeyValuePair, NetworkConfiguration,
     TaskOverride,
 };
+use bnaclient::types::{AnalysisPatch, AnalysisPost, StateMachineId, Step};
 use bnacore::aws::get_aws_parameter_value;
-use bnalambdas::{
-    authenticate_service_account, update_pipeline, AnalysisParameters, BNAPipeline, Context, AWSS3,
-};
+use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context, AWSS3};
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
-use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
@@ -34,13 +32,8 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
     // Retrieve API hostname.
     let api_hostname = get_aws_parameter_value("BNA_API_HOSTNAME").await?;
 
-    // Prepare the API URL.
-    let url = format!("{api_hostname}/ratings/analysis");
-
-    // Authenticate the service account.
-    let auth = authenticate_service_account()
-        .await
-        .map_err(|e| format!("cannot authenticate service account: {e}"))?;
+    // Create an authenticated BNA client.
+    let client_authd = create_service_account_bna_client(&api_hostname).await?;
 
     // Read the task inputs.
     let aws_s3 = &event.payload.aws_s3;
@@ -48,26 +41,21 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
     let state_machine_context = &event.payload.context;
     let state_machine_id = state_machine_context.id;
 
-    // Update the pipeline status.
-    let patch_url = format!("{url}/{state_machine_id}");
-
     // Create a new pipeline entry.
     info!(
         state_machine_id = state_machine_context.execution.name,
         "create a new Brokensspoke pipeline entry",
     );
-    let pipeline = BNAPipeline {
-        state_machine_id,
-        step: Some("Analysis".to_string()),
-        sqs_message: Some(serde_json::to_string(analysis_parameters)?),
-        ..Default::default()
-    };
-    let _post = Client::new()
-        .post(&url)
-        .bearer_auth(auth.access_token.clone())
-        .json(&pipeline)
-        .send()?
-        .error_for_status()?;
+    client_authd
+        .post_ratings_analyses()
+        .body(
+            AnalysisPost::builder()
+                .state_machine_id(StateMachineId(state_machine_id))
+                .step(Step::Setup)
+                .sqs_message(serde_json::to_string(analysis_parameters)?),
+        )
+        .send()
+        .await?;
 
     // Prepare the AWS client.
     let aws_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
@@ -145,12 +133,15 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
     };
 
     // Update the pipeline status.
-    let pipeline = BNAPipeline {
-        state_machine_id,
-        fargate_task_arn: Some(task.task_arn().unwrap().into()),
-        ..Default::default()
-    };
-    update_pipeline(&patch_url, &auth, &pipeline)?;
+    client_authd
+        .patch_analysis()
+        .analysis_id(StateMachineId(state_machine_id))
+        .body(
+            AnalysisPatch::builder()
+                .fargate_task_arn(task.task_arn().expect("an existing task ARN").to_string()),
+        )
+        .send()
+        .await?;
 
     Ok(output)
 }
@@ -173,7 +164,7 @@ async fn main() -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use bnalambdas::AuthResponse;
+    use bnalambdas::{create_authenticated_bna_client, AuthResponse};
     use uuid::Uuid;
 
     use super::*;
@@ -221,27 +212,25 @@ mod tests {
             token_type: String::from("Bearer"),
         };
 
-        // Prepare the API URL.
-        let url = format!("https://api.peopleforbikes.xyz/ratings/analysis");
-
-        // Prepare the payload.
-        let pipeline = BNAPipeline {
-            state_machine_id: Uuid::parse_str("fc009967-c4d0-416b-baee-93708ac80cbc").unwrap(),
-            step: Some("Analysis".to_string()),
-            sqs_message: Some(serde_json::to_string(r#"{"analysis_parameters": "test"}"#).unwrap()),
-            ..Default::default()
-        };
-        dbg!(&pipeline);
-        dbg!(serde_json::to_string(&pipeline).unwrap());
+        // Create an authenticated BNA client.
+        let client_authd = create_authenticated_bna_client("https://api.peopleforbikes.xyz", &auth);
 
         // Send the request.
-        let post = reqwest::Client::new()
-            .post(&url)
-            .bearer_auth(auth.access_token.clone())
-            .json(&pipeline)
+        let p = client_authd
+            .post_ratings_analyses()
+            .body(
+                AnalysisPost::builder()
+                    .state_machine_id(StateMachineId(
+                        Uuid::parse_str("fc009967-c4d0-416b-baee-93708ac80cbc").unwrap(),
+                    ))
+                    .step(Step::Analysis)
+                    .sqs_message(
+                        serde_json::to_string(r#"{"analysis_parameters": "test"}"#).unwrap(),
+                    ),
+            )
             .send()
-            .await;
-        let p = post;
+            .await
+            .unwrap();
         dbg!(p);
     }
 }

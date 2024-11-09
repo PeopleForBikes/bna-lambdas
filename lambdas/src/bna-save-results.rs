@@ -1,22 +1,16 @@
 use aws_config::BehaviorVersion;
 use aws_smithy_types_convert::date_time::DateTimeExt;
-use bnaclient::{
-    types::{
-        builder::{self},
-        AnalysisPost, BnaPost, BnaSummary, City, CityPost, CoreServices, Country, Infrastructure,
-        Opportunity, People, Recreation, Retail, Step, Transit,
-    },
-    Client,
+use bnaclient::types::{
+    builder::{self},
+    AnalysisPatch, BnaPost, BnaSummary, City, CityPost, CoreServices, Country, Infrastructure,
+    Opportunity, People, Recreation, Retail, StateMachineId, Step, Transit,
 };
 use bnacore::aws::get_aws_parameter_value;
-use bnalambdas::{
-    authenticate_service_account, update_pipeline, AnalysisParameters, BNAPipeline, Context,
-    Fargate, AWSS3,
-};
+use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context, Fargate, AWSS3};
 use csv::ReaderBuilder;
 use heck::ToTitleCase;
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
-// use reqwest::blocking::Client;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
@@ -26,6 +20,7 @@ use tracing::info;
 use uuid::Uuid;
 
 const OVERALL_SCORES_COUNT: usize = 23;
+const FARGATE_COST_PER_SEC: Decimal = dec!(0.00228333333333);
 
 #[derive(Deserialize)]
 struct TaskInput {
@@ -78,10 +73,8 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
     // Retrieve bna_bucket name.
     let bna_bucket = get_aws_parameter_value("BNA_BUCKET").await?;
 
-    // Authenticate the service account.
-    let auth = authenticate_service_account()
-        .await
-        .map_err(|e| format!("cannot authenticate service account: {e}"))?;
+    // Create an authenticated BNA client.
+    let client_authd = create_service_account_bna_client(&api_hostname).await?;
 
     // Prepare the AWS configuration.
     let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
@@ -89,10 +82,6 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
     // Configure the S3 client.
     info!("Configure the S3 client...");
     let s3_client = aws_sdk_s3::Client::new(&config);
-
-    // Configure the ECS client.
-    info!("Configure the ECS client...");
-    let ecs_client = aws_sdk_ecs::Client::new(&config);
 
     // Download the CSV file with the results.
     let scores_csv = format!(
@@ -113,61 +102,26 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
     info!("Check for existing city...");
     let country = &analysis_parameters.country;
     let region = match &analysis_parameters.region {
-        Some(region) => region.to_owned(),
-        None => country.to_owned(),
+        Some(region) => region,
+        None => country,
     };
     let name = &analysis_parameters.city;
-    let client = Client::new(&api_hostname);
-    let response = client
-        .get_city()
-        .country(country)
-        .region(region.clone())
-        .name(name)
-        .send()
-        .await?;
-    let city: Option<City> = match response.status().as_u16() {
-        x if x < 400 => Some(response.into_inner()),
-        404 => None,
-        _ => {
-            return Err(Box::new(SimpleError::new(format!(
-                "cannot retrieve city: {} {}",
-                response.status(),
-                response.status().as_str()
-            ))))
-        }
-    };
-    info!("City: {:#?}", city);
-
-    // Create city if it does not exist and save the city_id.
-    // Otherwise save the city_id and update the population.
-    let city_id: Uuid;
-    if let Some(city) = city {
-        info!("The city exists, update the population...");
-        city_id = city.city_id.expect("a city id to be present");
-    } else {
-        info!("Create a new city...");
-        // Create the city.
-        let c = CityPost::builder()
-            .country(Country::from_str(country.clone().to_title_case().as_str())?)
-            .state(Some(region.clone().to_title_case()))
-            .name(name.clone().to_title_case());
-        let city = client.post_city().body(c).send().await?;
-        city_id = city.city_id.expect("a city id to be present");
-    }
+    let city_id = get_or_create_city(&client_authd, country, region, name).await?;
 
     // Convert the overall scores to a BNAPost struct.
     let version = aws_s3.get_version();
     let rating_post = scores_to_bnapost(overall_scores, version, city_id);
 
-    // Prepare API URLs.
-    let ratings_url = format!("{api_hostname}/ratings");
-
     // Post a new entry via the API.
     info!("Post a new BNA entry via the API...");
     info!("New entry: {:?}", &rating_post);
-    client.post_ratings().body(rating_post).send().await?;
+    client_authd.post_ratings().body(rating_post).send().await?;
 
     // TODO: Patch city census.
+
+    // Configure the ECS client.
+    info!("Configure the ECS client...");
+    let ecs_client = aws_sdk_ecs::Client::new(&config);
 
     // Compute the time it took to run the fargate task.
     info!("describing fargate task {}", fargate.task_arn);
@@ -184,39 +138,23 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
     let stopped_at = task_info
         .started_at()
         .expect("the task must have stopped at this point");
-    let started_secs = started_at.secs();
-    let stopped_secs = stopped_at.secs();
-    let elapsed = (stopped_secs - started_secs) / 1000;
+    let fargate_time = FargateTime::new(*started_at, *stopped_at);
 
     // Compute the price.
-    const FARGATE_COST_PER_SEC: Decimal = dec!(0.00228333333333);
-    let elapsed_decimal: Decimal = elapsed.into();
-    let cost = elapsed_decimal.checked_mul(FARGATE_COST_PER_SEC);
+    let cost = fargate_time.cost(FARGATE_COST_PER_SEC);
 
-    // TODO(rgreinho): Update the pipeline status when the new state will be available.
     // Update the pipeline status.
     info!("updating pipeline...");
-    let patch_url = format!("{ratings_url}/analysis/{state_machine_id}");
-    let start_time = started_at
-        .to_time()
-        .expect("a valid start time is expected");
-    let end_time = stopped_at.to_time().ok();
-    // let pipeline = BNAPipeline {
-    //     cost,
-    //     end_time,
-    //     start_time,
-    //     state_machine_id,
-    //     step: Some("Setup".to_string()),
-    //     ..Default::default()
-    // };
-    // update_pipeline(&patch_url, &auth, &pipeline)?;
-    client
-        .post_ratings_analyses()
+    let start_time = started_at.to_chrono_utc().ok();
+    let end_time = stopped_at.to_chrono_utc().ok();
+    client_authd
+        .patch_analysis()
+        .analysis_id(StateMachineId(state_machine_id))
         .body(
-            AnalysisPost::builder()
-                .cost(Some(cost))
-                .start_time(Some(start_time))
-                .end_time(Some(end_time))
+            AnalysisPatch::builder()
+                .cost(cost.to_f64().expect("no overflow"))
+                .start_time(start_time)
+                .end_time(end_time)
                 .step(Step::Setup),
         )
         .send()
@@ -235,61 +173,86 @@ fn parse_overall_scores(data: &[u8]) -> Result<OverallScores, Error> {
     Ok(overall_scores)
 }
 
+/// Get a city or create it if it does not exist.
+async fn get_or_create_city(
+    client: &bnaclient::Client,
+    country: &str,
+    region: &str,
+    name: &str,
+) -> Result<Uuid, Error> {
+    let response = client
+        .get_city()
+        .country(country)
+        .region(region)
+        .name(name)
+        .send()
+        .await?;
+    let city: Option<City> = match response.status().as_u16() {
+        x if x < 400 => Some(response.into_inner()),
+        404 => None,
+        _ => {
+            return Err(Box::new(SimpleError::new(format!(
+                "cannot retrieve city: {} {}",
+                response.status(),
+                response.status().as_str()
+            ))))
+        }
+    };
+    info!("City: {:#?}", city);
+
+    let city_id: Uuid;
+    if let Some(city) = city {
+        info!("The city exists, update the population...");
+        city_id = city.city_id.expect("a city id to be present");
+    } else {
+        info!("Create a new city...");
+        // Create the city.
+        let c = CityPost::builder()
+            .country(Country::from_str(country.to_title_case().as_str())?)
+            .state(Some(region.to_title_case()))
+            .name(name.to_title_case());
+        let city = client.post_city().body(c).send().await?;
+        city_id = city.city_id.expect("a city id to be present");
+    }
+
+    Ok(city_id)
+}
+
+struct FargateTime {
+    started_at: aws_sdk_s3::primitives::DateTime,
+    stopped_at: aws_sdk_s3::primitives::DateTime,
+}
+
+impl FargateTime {
+    pub fn new(
+        started_at: aws_sdk_s3::primitives::DateTime,
+        stopped_at: aws_sdk_s3::primitives::DateTime,
+    ) -> Self {
+        Self {
+            started_at,
+            stopped_at,
+        }
+    }
+
+    /// Returns the duration of the the run in seconds.
+    pub fn elapsed(&self) -> i64 {
+        (self.started_at.secs() - self.stopped_at.secs()).abs()
+    }
+
+    /// Compute the price of a Fargate run.
+    pub fn cost(&self, price_per_sec: Decimal) -> Decimal {
+        let elapsed_decimal: Decimal = self.elapsed().into();
+        elapsed_decimal
+            .checked_mul(price_per_sec)
+            .expect("no overflow")
+    }
+}
+
 fn scores_to_bnapost(
     overall_scores: OverallScores,
     version: String,
     city_id: Uuid,
 ) -> builder::BnaPost {
-    // BNAPost {
-    //     core_services: BNACoreServices {
-    //         dentists: overall_scores.get_normalized_score("core_services_dentists"),
-    //         doctors: overall_scores.get_normalized_score("core_services_doctors"),
-    //         grocery: overall_scores.get_normalized_score("core_services_grocery"),
-    //         hospitals: overall_scores.get_normalized_score("core_services_hospitals"),
-    //         pharmacies: overall_scores.get_normalized_score("core_services_pharmacies"),
-    //         social_services: overall_scores.get_normalized_score("core_services_social_services"),
-    //         score: overall_scores
-    //             .get_normalized_score("core_services")
-    //             .unwrap_or_default(),
-    //     },
-    //     people: BNAPeople {
-    //         score: overall_scores.get_normalized_score("people"),
-    //     },
-    //     retail: BNARetail {
-    //         score: overall_scores.get_normalized_score("retail"),
-    //     },
-    //     transit: BNATransit {
-    //         score: overall_scores.get_normalized_score("transit"),
-    //     },
-    //     infrastructure: BNAInfrastructure {
-    //         low_stress_miles: overall_scores.get_normalized_score("total_miles_low_stress"),
-    //         high_stress_miles: overall_scores.get_normalized_score("total_miles_high_stress"),
-    //     },
-    //     opportunity: BNAOpportunity {
-    //         employment: overall_scores.get_normalized_score("opportunity_employment"),
-    //         higher_education: overall_scores.get_normalized_score("opportunity_higher_education"),
-    //         k12_education: overall_scores.get_normalized_score("opportunity_k12_education"),
-    //         technical_vocational_college: overall_scores
-    //             .get_normalized_score("opportunity_technical_vocational_college"),
-    //         score: overall_scores
-    //             .get_normalized_score("opportunity")
-    //             .unwrap_or_default(),
-    //     },
-    //     recreation: BNARecreation {
-    //         community_centers: overall_scores.get_normalized_score("recreation_community_centers"),
-    //         parks: overall_scores.get_normalized_score("recreation_parks"),
-    //         recreation_trails: overall_scores.get_normalized_score("recreation_trails"),
-    //         score: overall_scores
-    //             .get_normalized_score("recreation_trails")
-    //             .unwrap_or_default(),
-    //     },
-    //     summary: BNASummary {
-    //         bna_uuid: Uuid::new_v4(),
-    //         version,
-    //         city_id,
-    //         score: 0.0,
-    //     },
-    // }
     BnaPost::builder()
         .core_services(
             CoreServices::builder()
@@ -393,6 +356,8 @@ async fn main() -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
+
+    use aws_sdk_s3::primitives::DateTime;
 
     use super::*;
     // use bnalambdas::AuthResponse;
@@ -601,4 +566,42 @@ mod tests {
     //     dbg!(task_info);
     //     dbg!(elapsed);
     // }
+
+    #[test]
+    fn test_fargate_elapsed() {
+        let started_at = DateTime::from_str(
+            "1000-01-02T01:23:10.0Z",
+            aws_sdk_s3::primitives::DateTimeFormat::DateTime,
+        )
+        .unwrap();
+        let stopped_at = DateTime::from_str(
+            "1000-01-02T01:23:20.0Z",
+            aws_sdk_s3::primitives::DateTimeFormat::DateTime,
+        )
+        .unwrap();
+
+        let fargate_time = FargateTime::new(started_at, stopped_at);
+        let elapsed = fargate_time.elapsed();
+        assert_eq!(elapsed, 10_i64);
+    }
+
+    #[test]
+    fn test_fargate_cost() {
+        let started_at = DateTime::from_str(
+            "1000-01-02T01:23:10.0Z",
+            aws_sdk_s3::primitives::DateTimeFormat::DateTime,
+        )
+        .unwrap();
+        let stopped_at = DateTime::from_str(
+            "1000-01-02T01:23:20.0Z",
+            aws_sdk_s3::primitives::DateTimeFormat::DateTime,
+        )
+        .unwrap();
+
+        let fargate_time = FargateTime::new(started_at, stopped_at);
+        assert_eq!(
+            fargate_time.cost(FARGATE_COST_PER_SEC),
+            dec!(0.0228333333333)
+        );
+    }
 }

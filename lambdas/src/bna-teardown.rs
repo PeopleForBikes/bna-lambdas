@@ -1,7 +1,6 @@
+use bnaclient::types::{AnalysisPatch, StateMachineId, Step};
 use bnacore::aws::get_aws_parameter_value;
-use bnalambdas::{
-    authenticate_service_account, update_pipeline, AnalysisParameters, BNAPipeline, Context,
-};
+use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context};
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -26,26 +25,20 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
     // Retrieve API hostname.
     let api_hostname = get_aws_parameter_value("BNA_API_HOSTNAME").await?;
 
-    // Prepare the API URL.
-    let url = format!("{api_hostname}/ratings/analysis");
-
-    // Authenticate the service account.
-    let auth = authenticate_service_account()
-        .await
-        .map_err(|e| format!("cannot authenticate service account: {e}"))?;
+    // Create an authenticated BNA client.
+    let client_authd = create_service_account_bna_client(&api_hostname).await?;
 
     // Read the task inputs.
     let state_machine_context = &event.payload.context;
     let state_machine_id = state_machine_context.id;
 
     // Update the pipeline status.
-    let patch_url = format!("{url}/{state_machine_id}");
-    let pipeline = BNAPipeline {
-        state_machine_id,
-        step: Some("Cleanup".to_string()),
-        ..Default::default()
-    };
-    update_pipeline(&patch_url, &auth, &pipeline)?;
+    client_authd
+        .patch_analysis()
+        .analysis_id(StateMachineId(state_machine_id))
+        .body(AnalysisPatch::builder().step(Step::Cleanup))
+        .send()
+        .await?;
 
     Ok(())
 }

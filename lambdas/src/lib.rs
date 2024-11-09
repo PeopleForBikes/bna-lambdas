@@ -1,6 +1,6 @@
 use bnacore::aws::{get_aws_parameter_value, get_aws_secrets_value};
+use lambda_runtime::Error;
 use reqwest::blocking::Client;
-use rust_decimal::prelude::*;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -67,72 +67,6 @@ impl AnalysisParameters {
             region,
             fips_code,
         }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct BNAPipeline {
-    pub cost: Option<Decimal>,
-    pub end_time: Option<OffsetDateTime>,
-    pub fargate_price_id: Option<i32>,
-    pub fargate_task_arn: Option<String>,
-    pub result_posted: Option<bool>,
-    pub s3_bucket: Option<String>,
-    pub sqs_message: Option<String>,
-    pub start_time: OffsetDateTime,
-    pub state_machine_id: Uuid,
-    pub status: Option<String>,
-    pub step: Option<String>,
-    pub torn_down: Option<bool>,
-}
-
-impl Default for BNAPipeline {
-    fn default() -> Self {
-        Self {
-            cost: Default::default(),
-            end_time: Default::default(),
-            fargate_price_id: Default::default(),
-            fargate_task_arn: Default::default(),
-            result_posted: Default::default(),
-            s3_bucket: Default::default(),
-            sqs_message: Default::default(),
-            start_time: OffsetDateTime::now_utc(),
-            state_machine_id: Default::default(),
-            status: Default::default(),
-            step: Default::default(),
-            torn_down: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BNAPipelineStatus {
-    Pending,
-    Processing,
-    Completed,
-}
-
-impl FromStr for BNAPipelineStatus {
-    type Err = serde_plain::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_plain::from_str::<Self>(s)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BNAPipelineStep {
-    Analysis,
-    Cleanup,
-    Setup,
-    Save,
-}
-
-impl FromStr for BNAPipelineStep {
-    type Err = serde_plain::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_plain::from_str::<Self>(s)
     }
 }
 
@@ -254,19 +188,6 @@ pub struct StateMachine {
     pub name: String,
 }
 
-pub fn update_pipeline(
-    url: &str,
-    auth: &AuthResponse,
-    pipeline: &BNAPipeline,
-) -> Result<reqwest::blocking::Response, reqwest::Error> {
-    Client::new()
-        .patch(url)
-        .bearer_auth(auth.access_token.clone())
-        .json(&pipeline)
-        .send()?
-        .error_for_status()
-}
-
 #[derive(Deserialize, Serialize, Clone)]
 pub struct AWSS3 {
     pub destination: String,
@@ -288,6 +209,29 @@ pub struct Fargate {
     pub ecs_cluster_arn: String,
     pub task_arn: String,
     pub last_status: String,
+}
+
+/// Creates and authenticated BNA client.
+pub fn create_authenticated_bna_client(base_url: &str, auth: &AuthResponse) -> bnaclient::Client {
+    let mut val =
+        reqwest::header::HeaderValue::from_str(format!("Bearer {}", auth.access_token).as_str())
+            .expect("a valid auth token");
+    val.set_sensitive(true);
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(reqwest::header::AUTHORIZATION, val);
+    let client_builder: reqwest::Client = reqwest::ClientBuilder::new()
+        .default_headers(headers)
+        .build()
+        .unwrap();
+    bnaclient::Client::new_with_client(base_url, client_builder)
+}
+
+/// Creates and authenticated BNA client for the service account.
+pub async fn create_service_account_bna_client(base_url: &str) -> Result<bnaclient::Client, Error> {
+    let auth = authenticate_service_account()
+        .await
+        .map_err(|e| format!("cannot authenticate service account: {e}"))?;
+    Ok(create_authenticated_bna_client(base_url, &auth))
 }
 
 #[cfg(test)]
