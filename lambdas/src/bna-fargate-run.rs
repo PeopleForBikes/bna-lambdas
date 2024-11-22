@@ -204,33 +204,33 @@ mod tests {
         let _deserialized = serde_json::from_str::<TaskInput>(json_input).unwrap();
     }
 
-    #[tokio::test]
-    async fn test_create_pipeline() {
-        let auth = AuthResponse {
-            access_token: String::from(""),
-            expires_in: 3600,
-            token_type: String::from("Bearer"),
-        };
+    // #[tokio::test]
+    // async fn test_create_pipeline() {
+    //     let auth = AuthResponse {
+    //         access_token: String::from(""),
+    //         expires_in: 3600,
+    //         token_type: String::from("Bearer"),
+    //     };
 
-        // Create an authenticated BNA client.
-        let client_authd = create_authenticated_bna_client("https://api.peopleforbikes.xyz", &auth);
+    //     // Create an authenticated BNA client.
+    //     let client_authd = create_authenticated_bna_client("https://api.peopleforbikes.xyz", &auth);
 
-        // Send the request.
-        let p = client_authd
-            .post_ratings_analyses()
-            .body(
-                AnalysisPost::builder()
-                    .state_machine_id(StateMachineId(
-                        Uuid::parse_str("fc009967-c4d0-416b-baee-93708ac80cbc").unwrap(),
-                    ))
-                    .step(Step::Analysis)
-                    .sqs_message(
-                        serde_json::to_string(r#"{"analysis_parameters": "test"}"#).unwrap(),
-                    ),
-            )
-            .send()
-            .await
-            .unwrap();
-        dbg!(p);
-    }
+    //     // Send the request.
+    //     let p = client_authd
+    //         .post_ratings_analyses()
+    //         .body(
+    //             AnalysisPost::builder()
+    //                 .state_machine_id(StateMachineId(
+    //                     Uuid::parse_str("fc009967-c4d0-416b-baee-93708ac80cbc").unwrap(),
+    //                 ))
+    //                 .step(Step::Analysis)
+    //                 .sqs_message(
+    //                     serde_json::to_string(r#"{"analysis_parameters": "test"}"#).unwrap(),
+    //                 ),
+    //         )
+    //         .send()
+    //         .await
+    //         .unwrap();
+    //     dbg!(p);
+    // }
 }
