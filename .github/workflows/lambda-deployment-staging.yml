@@ -42,7 +42,6 @@ jobs:
           bna-fargate-status
           bna-prepare-destination
           bna-save-results
-          bna-setup
           bna-sqs-parse
           bna-teardown
           scorecard
