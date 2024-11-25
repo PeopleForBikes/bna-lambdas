@@ -9,6 +9,8 @@ on:
     paths:
       - ".github/workflows/lambdas.yml"
       - "lambdas/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
     types:
       - opened
       - synchronize
