@@ -63,6 +63,7 @@ async fn main() -> Result<(), Error> {
 mod tests {
     use super::*;
     use bnalambdas::{Execution, State, StateMachine};
+    use chrono::Utc;
     use lambda_runtime::{Context, LambdaEvent};
     use uuid::Uuid;
 
@@ -83,10 +84,10 @@ mod tests {
                     id: "id".to_string(),
                     name: "name".to_string(),
                     role_arn: "arn".to_string(),
-                    start_time: time::OffsetDateTime::now_utc(),
+                    start_time: Utc::now(),
                 },
                 state: State {
-                    entered_time: time::OffsetDateTime::now_utc(),
+                    entered_time: Utc::now(),
                     name: "name".to_string(),
                 },
                 state_machine: StateMachine {

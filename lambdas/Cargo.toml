@@ -12,6 +12,7 @@ aws-smithy-types-convert = { workspace = true, features = ["convert-chrono"] }
 aws_lambda_events = { workspace = true }
 bnaclient = { workspace = true }
 bnacore = { workspace = true }
+chrono = { workspace = true }
 csv = { workspace = true }
 fontdb = { workspace = true }
 heck = { workspace = true }
@@ -34,7 +35,6 @@ serde_with = { workspace = true }
 simple-error = { workspace = true }
 slug = { workspace = true }
 svg2pdf = { workspace = true }
-time = { workspace = true, features = ["macros", "serde-well-known"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }

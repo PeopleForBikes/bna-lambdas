@@ -6,6 +6,7 @@ use aws_sdk_ecs::types::{
 use bnaclient::types::{AnalysisPatch, AnalysisPost, StateMachineId, Step};
 use bnacore::aws::get_aws_parameter_value;
 use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context, AWSS3};
+use chrono::Utc;
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -51,6 +52,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
         .body(
             AnalysisPost::builder()
                 .state_machine_id(StateMachineId(state_machine_id))
+                .start_time(Utc::now())
                 .step(Step::Setup)
                 .sqs_message(serde_json::to_string(analysis_parameters)?),
         )
@@ -164,9 +166,6 @@ async fn main() -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use bnalambdas::{create_authenticated_bna_client, AuthResponse};
-    use uuid::Uuid;
-
     use super::*;
 
     #[test]
@@ -203,34 +202,4 @@ mod tests {
         }"#;
         let _deserialized = serde_json::from_str::<TaskInput>(json_input).unwrap();
     }
-
-    // #[tokio::test]
-    // async fn test_create_pipeline() {
-    //     let auth = AuthResponse {
-    //         access_token: String::from(""),
-    //         expires_in: 3600,
-    //         token_type: String::from("Bearer"),
-    //     };
-
-    //     // Create an authenticated BNA client.
-    //     let client_authd = create_authenticated_bna_client("https://api.peopleforbikes.xyz", &auth);
-
-    //     // Send the request.
-    //     let p = client_authd
-    //         .post_ratings_analyses()
-    //         .body(
-    //             AnalysisPost::builder()
-    //                 .state_machine_id(StateMachineId(
-    //                     Uuid::parse_str("fc009967-c4d0-416b-baee-93708ac80cbc").unwrap(),
-    //                 ))
-    //                 .step(Step::Analysis)
-    //                 .sqs_message(
-    //                     serde_json::to_string(r#"{"analysis_parameters": "test"}"#).unwrap(),
-    //                 ),
-    //         )
-    //         .send()
-    //         .await
-    //         .unwrap();
-    //     dbg!(p);
-    // }
 }

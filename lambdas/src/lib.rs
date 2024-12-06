@@ -1,8 +1,8 @@
 use bnacore::aws::{get_aws_parameter_value, get_aws_secrets_value};
+use chrono::{DateTime, Utc};
 use lambda_runtime::Error;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
-use time::OffsetDateTime;
 use uuid::Uuid;
 
 pub const BROKENSPOKE_ANALYZER_BUCKET: &str = "brokenspoke-analyzer";
@@ -138,8 +138,7 @@ pub struct Execution {
     pub id: String,
     pub name: String,
     pub role_arn: String,
-    #[serde(with = "time::serde::iso8601")]
-    pub start_time: OffsetDateTime,
+    pub start_time: DateTime<Utc>,
 }
 
 impl Execution {
@@ -147,13 +146,14 @@ impl Execution {
     ///
     /// ```
     /// use bnalambdas::Execution;
+    /// use chrono::Utc;
     /// use uuid::Uuid;
     ///
     /// let execution = Execution {
     ///   id: "id".to_string(),
     ///   name: "e6aade5a-b343-120b-dbaa-bd916cd99221_04ca18b9-6e0c-1aa5-2c3f-d4b445f840bc".to_string(),
     ///   role_arn: "role".to_string(),
-    ///   start_time: time::OffsetDateTime::now_utc(),
+    ///   start_time: Utc::now(),
     /// };
     /// let (state_machine_id, schedule_trigger_id) = execution.ids().unwrap();
     /// assert_eq!(
@@ -177,8 +177,7 @@ impl Execution {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct State {
-    #[serde(with = "time::serde::iso8601")]
-    pub entered_time: OffsetDateTime,
+    pub entered_time: DateTime<Utc>,
     pub name: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -277,7 +276,7 @@ mod tests {
             id: "id".to_string(),
             name: name.clone(),
             role_arn: "role".to_string(),
-            start_time: time::OffsetDateTime::now_utc(),
+            start_time: Utc::now(),
         };
         let (state_machine_id, schedule_trigger_id) = deserialized.ids().unwrap();
         assert_eq!(state_machine_id, Uuid::parse_str(&name).unwrap());
