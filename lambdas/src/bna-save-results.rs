@@ -183,8 +183,8 @@ async fn get_or_create_city(
     let response = client
         .get_city()
         .country(normalized_country)
-        .region(region)
-        .name(name)
+        .region(region.to_title_case())
+        .name(name.to_title_case())
         .send()
         .await?;
     let city: Option<City> = match response.status().as_u16() {
