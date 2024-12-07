@@ -42,6 +42,9 @@ url = { workspace = true, features = ["serde"] }
 uuid = { workspace = true, features = ["v4", "serde"] }
 usvg = { workspace = true }
 
+[dev-dependencies]
+test-log = { workspace = true, features = ["trace"] }
+
 [[bin]]
 name = "bna-fargate-run"
 path = "src/bna-fargate-run.rs"

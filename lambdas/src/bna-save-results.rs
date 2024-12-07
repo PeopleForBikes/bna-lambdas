@@ -10,8 +10,7 @@ use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context,
 use csv::ReaderBuilder;
 use heck::ToTitleCase;
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
-use rust_decimal::prelude::ToPrimitive;
-use rust_decimal::Decimal;
+use rust_decimal::{prelude::ToPrimitive, Decimal};
 use rust_decimal_macros::dec;
 use serde::Deserialize;
 use simple_error::SimpleError;
@@ -180,9 +179,10 @@ async fn get_or_create_city(
     region: &str,
     name: &str,
 ) -> Result<Uuid, Error> {
+    let normalized_country = Country::from_str(country.to_title_case().as_str())?;
     let response = client
         .get_city()
-        .country(country)
+        .country(normalized_country)
         .region(region)
         .name(name)
         .send()
@@ -199,20 +199,21 @@ async fn get_or_create_city(
         }
     };
     info!("City: {:#?}", city);
+    dbg!(&city);
 
     let city_id: Uuid;
     if let Some(city) = city {
         info!("The city exists, update the population...");
-        city_id = city.city_id.expect("a city id to be present");
+        city_id = city.id;
     } else {
         info!("Create a new city...");
         // Create the city.
         let c = CityPost::builder()
-            .country(Country::from_str(country.to_title_case().as_str())?)
+            .country(normalized_country)
             .state(Some(region.to_title_case()))
             .name(name.to_title_case());
         let city = client.post_city().body(c).send().await?;
-        city_id = city.city_id.expect("a city id to be present");
+        city_id = city.id;
     }
 
     Ok(city_id)
@@ -358,6 +359,7 @@ async fn main() -> Result<(), Error> {
 mod tests {
     use super::*;
     use aws_sdk_s3::primitives::DateTime;
+    use test_log::test;
 
     #[test]
     fn test_input_deserialization() {
@@ -647,5 +649,14 @@ mod tests {
 
     //     let event = LambdaEvent::new(payload, context);
     //     function_handler(event).await.unwrap();
+    // }
+
+    // #[test(tokio::test)]
+    // async fn test_get_or_create_city() {
+    //     let client = bnaclient::Client::new("http://localhost:3000");
+    //     let city = get_or_create_city(&client, "United States", "New Mexico", "Santa Rosa")
+    //         .await
+    //         .unwrap();
+    //     dbg!(city);
     // }
 }
