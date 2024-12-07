@@ -356,11 +356,8 @@ async fn main() -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-
-    use aws_sdk_s3::primitives::DateTime;
-
     use super::*;
-    // use bnalambdas::AuthResponse;
+    use aws_sdk_s3::primitives::DateTime;
 
     #[test]
     fn test_input_deserialization() {
@@ -604,4 +601,51 @@ mod tests {
             dec!(0.0228333333333)
         );
     }
+
+    // #[tokio::test]
+    // async fn test_handler() {
+    //     let json_input = r#"{
+    //     "analysis_parameters": {
+    //       "country": "usa",
+    //       "city": "santa rosa",
+    //       "region": "new mexico",
+    //       "fips_code": "3570670"
+    //     },
+    //     "receipt_handle": "AQEBFo+wTTIZdCvaF2KtZN4ZolAGKeKVGSAhQ7BTA9MUirBT/8mprrHIOg8LuWi3LK9Lu1oFDd5GqVmzExGeHlVbmRA3HWd+vy11b1N4qVeHywvUJJT5/G/GVG2jimkHDa31893N0k2HIm2USSsN6Bqw0JI57ac0ymUWJxzkN9/yJQQXg2dmnNn3YuouzQTGpOJnMjv9UnZaHGVjZXV30IWjs9VzUZd9Wnl721B99pF9t1FUeYnAxShtNUZKzbfbNmSmwtKoE+SwohFL0k84cYkJUjgdXw9yEoT2+zEqeGWtU/oSGmbLorPWIiVYubPcwni1Q9KZROUDvBX7sPDwUeYxxhw9SBxz3y4Tg5hH7X99D4tDXbnRJR1v/0aBAs9h/ohfcEjoYmHdYqRL9r2t33SwYg==",
+    //     "context": {
+    //       "Execution": {
+    //         "Id": "arn:aws:states:us-west-2:863246263227:execution:brokenspoke-analyzer:fd34f1d1-8009-44f1-9111-d3a2daf8a8fe",
+    //         "Name": "fd34f1d1-8009-44f1-9111-d3a2daf8a8fe",
+    //         "RoleArn": "arn:aws:iam::863246263227:role/BNAPipelineLambdaExecution",
+    //         "StartTime": "+002024-04-11T03:05:31.843000000Z"
+    //       },
+    //       "State": {
+    //         "EnteredTime": "+002024-04-11T03:05:32.059000000Z",
+    //         "Name": "BNAContext"
+    //       },
+    //       "StateMachine": {
+    //         "Id": "arn:aws:states:us-west-2:863246263227:stateMachine:brokenspoke-analyzer",
+    //         "Name": "brokenspoke-analyzer"
+    //       },
+    //       "Id": "9ff90cac-0cf5-4923-897f-4416df5e7328"
+    //     },
+    //     "aws_s3": {
+    //       "destination": "usa/new mexico/santa rosa/23.12.4"
+    //     },
+    //     "fargate": {
+    //       "ecs_cluster_arn": "arn:aws:ecs:us-west-2:863246263227:cluster/bna",
+    //       "task_arn": "arn:aws:ecs:us-west-2:863246263227:task/bna/681690ef8bbb446a93e1324f113e75f0",
+    //       "last_status": "STOPPED"
+    //     }
+    //   }"#;
+    //     let payload = serde_json::from_str::<TaskInput>(json_input).unwrap();
+    //     let mut context = lambda_runtime::Context::default();
+    //     context.request_id = "ID".to_string();
+
+    //     env::set_var("BNA_API_HOSTNAME", "http://localhost:3000");
+    //     env::set_var("BNA_BUCKET", "bna-analyzer");
+
+    //     let event = LambdaEvent::new(payload, context);
+    //     function_handler(event).await.unwrap();
+    // }
 }
