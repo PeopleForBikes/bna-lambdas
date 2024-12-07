@@ -11,7 +11,8 @@ aws-sdk-s3 = "1.65.0"
 aws-sdk-sqs = "1.50.0"
 aws-smithy-types-convert = "0.60.8"
 axum = "0.7.7"
-bnaclient = { git = "https://github.com/PeopleForBikes/bna-api", rev = "c8ca326" }
+bnaclient = { git = "https://github.com/PeopleForBikes/bna-api", rev = "1b40300" }
+# bnaclient = { path = "/Users/rgreinhofer/projects/PeopleForBikes/bna-api/bnaclient" }
 bnacore = { git = "https://github.com/PeopleForBikes/brokenspoke", rev = "c20ec31" }
 chrono = "0.4.19"
 clap = "4.5.20"
@@ -44,7 +45,8 @@ serde_with = "3.11.0"
 simple-error = "0.3.0"
 slug = "0.1.6"
 svg2pdf = "0.12.0"
-thiserror = "2.0.4"
+test-log = "0.2.16"
+thiserror = "2.0.5"
 tokio = "1.42.0"
 tower = "0.5.1"
 tower-cookies = "0.10.0"
