@@ -659,4 +659,46 @@ mod tests {
     //         .unwrap();
     //     dbg!(city);
     // }
+
+    //     #[test(tokio::test)]
+    //     async fn test_post_ratings() {
+    //         let data = r#"id,score_id,score_original,score_normalized,human_explanation
+    // 1,people,0.1917,19.1700,"On average, census blocks in the neighborhood received this population score."
+    // 2,opportunity_employment,0.0826,8.2600,"On average, census blocks in the neighborhood received this employment score."
+    // 3,opportunity_k12_education,0.0831,8.3100,"On average, census blocks in the neighborhood received this K12 schools score."
+    // 4,opportunity_technical_vocational_college,0.0000,0.0000,"On average, census blocks in the neighborhood received this tech/vocational colleges score."
+    // 5,opportunity_higher_education,0.0000,0.0000,"On average, census blocks in the neighborhood received this universities score."
+    // 6,opportunity,0.0829,8.2900,
+    // 7,core_services_doctors,0.0000,0.0000,"On average, census blocks in the neighborhood received this doctors score."
+    // 8,core_services_dentists,0.0000,0.0000,"On average, census blocks in the neighborhood received this dentists score."
+    // 9,core_services_hospitals,0.0518,5.1800,"On average, census blocks in the neighborhood received this hospital score."
+    // 10,core_services_pharmacies,0.0000,0.0000,"On average, census blocks in the neighborhood received this pharmacies score."
+    // 11,core_services_grocery,0.0169,1.6900,"On average, census blocks in the neighborhood received this grocery score."
+    // 12,core_services_social_services,0.0000,0.0000,"On average, census blocks in the neighborhood received this social services score."
+    // 13,core_services,0.0324,3.2400,
+    // 14,retail,0.0000,0.0000,"On average, census blocks in the neighborhood received this retail score."
+    // 15,recreation_parks,0.0713,7.1300,"On average, census blocks in the neighborhood received this parks score."
+    // 16,recreation_trails,0.0000,0.0000,"On average, census blocks in the neighborhood received this trails score."
+    // 17,recreation_community_centers,0.0000,0.0000,"On average, census blocks in the neighborhood received this community centers score."
+    // 18,recreation,0.0713,7.1300,
+    // 19,transit,0.0000,0.0000,"On average, census blocks in the neighborhood received this transit score."
+    // 20,overall_score,0.0893,8.9300,
+    // 21,population_total,2960.0000,,Total population of boundary
+    // 22,total_miles_low_stress,9.3090,9.3000,Total low-stress miles
+    // 23,total_miles_high_stress,64.5092,64.5000,Total high-stress miles"#;
+    //         let scores = parse_overall_scores(data.as_bytes()).unwrap();
+    //         let bna_post_builder = scores_to_bnapost(
+    //             scores,
+    //             "24.12".to_string(),
+    //             "aac22433-37d4-4cb7-b6b8-e7e77cbbcf41"
+    //                 .parse::<Uuid>()
+    //                 .unwrap(),
+    //         );
+    //         dbg!(&bna_post_builder);
+    //         let bna_post: BnaPost = bna_post_builder.try_into().unwrap();
+    //         println!("{}", serde_json::to_string(&bna_post).unwrap());
+    //         let client = bnaclient::Client::new("http://localhost:3000");
+    //         let response = client.post_ratings().body(bna_post).send().await.unwrap();
+    //         dbg!(response);
+    //     }
 }

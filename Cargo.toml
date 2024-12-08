@@ -11,7 +11,7 @@ aws-sdk-s3 = "1.65.0"
 aws-sdk-sqs = "1.50.0"
 aws-smithy-types-convert = "0.60.8"
 axum = "0.7.7"
-bnaclient = { git = "https://github.com/PeopleForBikes/bna-api", rev = "9c2ce02" }
+bnaclient = { git = "https://github.com/PeopleForBikes/bna-api", rev = "790006d" }
 bnacore = { git = "https://github.com/PeopleForBikes/brokenspoke", rev = "c20ec31" }
 chrono = "0.4.19"
 clap = "4.5.20"
