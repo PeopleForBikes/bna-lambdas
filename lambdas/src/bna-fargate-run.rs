@@ -53,7 +53,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
             AnalysisPost::builder()
                 .state_machine_id(StateMachineId(state_machine_id))
                 .start_time(Utc::now())
-                .status(AnalysisStatus::InProgress)
+                .status(AnalysisStatus::Processing)
                 .step(Step::Setup)
                 .sqs_message(serde_json::to_string(analysis_parameters)?)
                 .s3_bucket(aws_s3.destination.clone()),
