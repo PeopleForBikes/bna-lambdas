@@ -134,7 +134,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
                 .end_time(end_time)
                 .results_posted(true)
                 .start_time(start_time)
-                .status(AnalysisStatus::Complete)
+                .status(AnalysisStatus::Completed)
                 .step(Step::Cleanup),
         )
         .send()
@@ -732,6 +732,31 @@ mod tests {
     //     let r = client
     //         .post_ratings_analyses()
     //         .body(analysis_post)
+    //         .send()
+    //         .await
+    //         .unwrap();
+    //     dbg!(r);
+    // }
+
+    // #[test(tokio::test)]
+    // async fn test_update_pipeline() {
+    //     let client = bnaclient::Client::new("http://localhost:3000");
+    //     let analysis_patch_builder = AnalysisPatch::builder()
+    //         .start_time(Utc::now())
+    //         .cost(Decimal::new(10345, 3).to_f64().expect("no overflow"))
+    //         .step(Step::Setup)
+    //         .results_posted(true)
+    //         .status(AnalysisStatus::Completed);
+    //     let analysis_patch: AnalysisPatch = analysis_patch_builder.try_into().unwrap();
+    //     println!("{}", serde_json::to_string(&analysis_patch).unwrap());
+    //     let r = client
+    //         .patch_analysis()
+    //         .analysis_id(StateMachineId(
+    //             "c86473dd-53b5-4abd-be0d-c25ed6b5f029"
+    //                 .parse::<Uuid>()
+    //                 .unwrap(),
+    //         ))
+    //         .body(analysis_patch)
     //         .send()
     //         .await
     //         .unwrap();
