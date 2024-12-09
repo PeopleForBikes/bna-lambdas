@@ -1,4 +1,4 @@
-use aws_config::BehaviorVersion;
+use aws_config::{BehaviorVersion, SdkConfig};
 use aws_smithy_types_convert::date_time::DateTimeExt;
 use bnaclient::types::{
     builder::{self},
@@ -118,30 +118,8 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
 
     // TODO: Patch city census.
 
-    // Configure the ECS client.
-    info!("Configure the ECS client...");
-    let ecs_client = aws_sdk_ecs::Client::new(&config);
-
-    // Compute the time it took to run the fargate task.
-    info!("describing fargate task {}", fargate.task_arn);
-    let describe_tasks = ecs_client
-        .describe_tasks()
-        .cluster(fargate.ecs_cluster_arn.clone())
-        .tasks(fargate.task_arn.clone())
-        .send()
-        .await?;
-    let task_info = describe_tasks.tasks().first().unwrap();
-    let started_at = task_info
-        .started_at()
-        .expect("the task must have started at this point");
-    let stopped_at = task_info
-        .started_at()
-        .expect("the task must have stopped at this point");
-    let fargate_time = FargateTime::new(*started_at, *stopped_at);
-
-    // Compute the price.
-    let cost = fargate_time.cost(FARGATE_COST_PER_SEC);
-    info!(cost = ?cost);
+    // Compute the time it took to run the fargate task and its cost;
+    let (started_at, stopped_at, cost) = update_fargate_details(&config, fargate).await;
 
     // Update the pipeline status.
     info!("updating pipeline...");
@@ -153,9 +131,10 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
         .body(
             AnalysisPatch::builder()
                 .cost(cost.to_f64().expect("no overflow"))
-                .start_time(start_time)
                 .end_time(end_time)
-                .step(Step::Setup),
+                .results_posted(true)
+                .start_time(start_time)
+                .step(Step::Cleanup),
         )
         .send()
         .await?;
@@ -338,6 +317,41 @@ async fn fetch_s3_object_as_bytes(
         buffer.write_all(&bytes)?;
     }
     Ok(buffer)
+}
+
+async fn update_fargate_details(
+    config: &SdkConfig,
+    fargate: &Fargate,
+) -> (
+    aws_sdk_s3::primitives::DateTime,
+    aws_sdk_s3::primitives::DateTime,
+    Decimal,
+) {
+    let ecs_client = aws_sdk_ecs::Client::new(config);
+    info!("describing fargate task {}", fargate.task_arn);
+    let describe_tasks = ecs_client
+        .describe_tasks()
+        .cluster(fargate.ecs_cluster_arn.clone())
+        .tasks(fargate.task_arn.clone())
+        .send()
+        .await
+        .expect("the ECS task must be described");
+    let task_info = describe_tasks.tasks().first().unwrap();
+    let started_at = task_info
+        .started_at()
+        .expect("the task must have started at this point");
+    let stopped_at = task_info
+        .stopped_at()
+        .expect("the task must have stopped at this point");
+    let fargate_time = FargateTime::new(*started_at, *stopped_at);
+    let elapsed = fargate_time.elapsed();
+    info!(elapsed = ?elapsed);
+
+    // Compute the price.
+    let cost = fargate_time.cost(FARGATE_COST_PER_SEC);
+    info!(cost = ?cost);
+
+    (*started_at, *stopped_at, cost)
 }
 
 #[tokio::main]
@@ -570,19 +584,19 @@ mod tests {
     #[test]
     fn test_fargate_elapsed() {
         let started_at = DateTime::from_str(
-            "1000-01-02T01:23:10.0Z",
+            "2024-11-22T16:33:07.624354Z",
             aws_sdk_s3::primitives::DateTimeFormat::DateTime,
         )
         .unwrap();
         let stopped_at = DateTime::from_str(
-            "1000-01-02T01:23:20.0Z",
+            "2024-11-22T16:34:59.322Z",
             aws_sdk_s3::primitives::DateTimeFormat::DateTime,
         )
         .unwrap();
 
         let fargate_time = FargateTime::new(started_at, stopped_at);
         let elapsed = fargate_time.elapsed();
-        assert_eq!(elapsed, 10_i64);
+        assert_eq!(elapsed, 112_i64);
     }
 
     #[test]
@@ -721,5 +735,20 @@ mod tests {
     //         .await
     //         .unwrap();
     //     dbg!(r);
+    // }
+
+    // #[test(tokio::test)]
+    // async fn test_fargate_details() {
+    //     let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    //     let fargate = Fargate {
+    //         ecs_cluster_arn: "".to_string(),
+    //         task_arn: "".to_string(),
+    //         last_status: "PROVISIONING".to_string(),
+    //     };
+    //     let (start, stop, cost) = update_fargate_details(&config, &fargate).await;
+    //     dbg!(start);
+    //     dbg!(stop);
+    //     dbg!(cost);
+    //     assert!(cost > Decimal::ZERO);
     // }
 }
