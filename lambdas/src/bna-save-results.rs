@@ -141,12 +141,13 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
 
     // Compute the price.
     let cost = fargate_time.cost(FARGATE_COST_PER_SEC);
+    info!(cost = ?cost);
 
     // Update the pipeline status.
     info!("updating pipeline...");
     let start_time = started_at.to_chrono_utc().ok();
     let end_time = stopped_at.to_chrono_utc().ok();
-    client_authd
+    let _r = client_authd
         .patch_analysis()
         .analysis_id(StateMachineId(state_machine_id))
         .body(
@@ -515,7 +516,7 @@ mod tests {
     //     let get_cities_url = format!("{cities_url}/{country}/{region}/{name}");
 
     //     let auth = AuthResponse {
-    //         access_token: String::from("eyJraWQiOiJJa2REUDBMVkVBckdqM25udDZoQmJ3T3VhdVdhSUI2K0tweXJLYVRaaEVZPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJlNmMwYjEyYS1iNjg1LTQ3YmMtYThmMi1kOGU0YTZjYTMyODAiLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAudXMtd2VzdC0yLmFtYXpvbmF3cy5jb21cL3VzLXdlc3QtMl9OUjFXaGVPdFciLCJjbGllbnRfaWQiOiI0amtsbGk3MDEwZHFla2NtNTJ1bjVmNXFxNyIsIm9yaWdpbl9qdGkiOiI5NmMwMWI1Ny01YWQ0LTQ4ODMtOTIwYy1kZDc5ZjY2N2RlMzYiLCJldmVudF9pZCI6IjBmMmU5NDA3LTRlYmQtNGQ1Zi1hN2YwLTBhMzM1OTNkNzg5ZSIsInRva2VuX3VzZSI6ImFjY2VzcyIsInNjb3BlIjoiYXdzLmNvZ25pdG8uc2lnbmluLnVzZXIuYWRtaW4iLCJhdXRoX3RpbWUiOjE3MTYzMjkzMDMsImV4cCI6MTcxNjMzMjkwMywiaWF0IjoxNzE2MzI5MzAzLCJqdGkiOiJkYzA2ZThmOS1mYjM5LTRiM2YtYTE0My03ZWY0YmEwYmNmMzUiLCJ1c2VybmFtZSI6InJlbXkuZ3JlaW5ob2ZlciJ9.k39pNR6NOtE72dysEraDr52M4pnMzRd0PW2OmbL4oB4Hn3yR89tOdIB2CKo_hT9U0gR90UPxAeQsVkfZ98LTiK5Ysf1dkQl-0gJlYayZc-Rva3_5o7eH40PsdJvAMkaIYCdTI8NoTa8WsCwqVSOx1irotzBXrSlSQ_aS7k6SJO0cYFTJPk7VIRUiHwXwARhO5N38EUTRHCbHzKmkY6MMv04yCJz1FDoYFkTzeShB6pEaUDAwnjDY3KJGhxpPFLfsGToxNB0xKfw0cklTXHnP8ZgVT2LpvP3t068rrz-3JqdqeDPshcKUkVgCEJZ1m1TlPYndXhuZoTCpR07wJhqDZQ"),
+    //         access_token: String::from(""),
     //         expires_in: 3600,
     //         token_type: String::from("Bearer"),
     //     };
@@ -598,6 +599,7 @@ mod tests {
         .unwrap();
 
         let fargate_time = FargateTime::new(started_at, stopped_at);
+        assert_eq!(fargate_time.elapsed(), 10);
         assert_eq!(
             fargate_time.cost(FARGATE_COST_PER_SEC),
             dec!(0.0228333333333)
@@ -701,4 +703,23 @@ mod tests {
     //         let response = client.post_ratings().body(bna_post).send().await.unwrap();
     //         dbg!(response);
     //     }
+
+    // #[test(tokio::test)]
+    // async fn test_create_pipeline() {
+    //     let client = bnaclient::Client::new("http://localhost:3000");
+    //     let analysis_post_builder = AnalysisPost::builder()
+    //         .state_machine_id(StateMachineId(uuid::Uuid::new_v4()))
+    //         .start_time(Utc::now())
+    //         .cost(Decimal::new(10345, 3).to_f64().expect("no overflow"))
+    //         .step(Step::Setup);
+    //     let analysis_post: AnalysisPost = analysis_post_builder.try_into().unwrap();
+    //     println!("{}", serde_json::to_string(&analysis_post).unwrap());
+    //     let r = client
+    //         .post_ratings_analyses()
+    //         .body(analysis_post)
+    //         .send()
+    //         .await
+    //         .unwrap();
+    //     dbg!(r);
+    // }
 }
