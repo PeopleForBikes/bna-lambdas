@@ -2,8 +2,8 @@ use aws_config::{BehaviorVersion, SdkConfig};
 use aws_smithy_types_convert::date_time::DateTimeExt;
 use bnaclient::types::{
     builder::{self},
-    AnalysisPatch, BnaPost, BnaSummary, City, CityPost, CoreServices, Country, Infrastructure,
-    Opportunity, People, Recreation, Retail, StateMachineId, Step, Transit,
+    AnalysisPatch, AnalysisStatus, BnaPost, BnaSummary, City, CityPost, CoreServices, Country,
+    Infrastructure, Opportunity, People, Recreation, Retail, StateMachineId, Step, Transit,
 };
 use bnacore::aws::get_aws_parameter_value;
 use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context, Fargate, AWSS3};
@@ -134,6 +134,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
                 .end_time(end_time)
                 .results_posted(true)
                 .start_time(start_time)
+                .status(AnalysisStatus::Complete)
                 .step(Step::Cleanup),
         )
         .send()

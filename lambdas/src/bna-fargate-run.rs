@@ -3,7 +3,7 @@ use aws_sdk_ecs::types::{
     AssignPublicIp, AwsVpcConfiguration, ContainerOverride, KeyValuePair, NetworkConfiguration,
     TaskOverride,
 };
-use bnaclient::types::{AnalysisPatch, AnalysisPost, StateMachineId, Step};
+use bnaclient::types::{AnalysisPatch, AnalysisPost, AnalysisStatus, StateMachineId, Step};
 use bnacore::aws::get_aws_parameter_value;
 use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context, AWSS3};
 use chrono::Utc;
@@ -53,6 +53,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
             AnalysisPost::builder()
                 .state_machine_id(StateMachineId(state_machine_id))
                 .start_time(Utc::now())
+                .status(AnalysisStatus::InProgress)
                 .step(Step::Setup)
                 .sqs_message(serde_json::to_string(analysis_parameters)?)
                 .s3_bucket(aws_s3.destination.clone()),
