@@ -19,7 +19,7 @@ use tracing::info;
 use uuid::Uuid;
 
 const OVERALL_SCORES_COUNT: usize = 23;
-const FARGATE_COST_PER_SEC: Decimal = dec!(0.00228333333333);
+const FARGATE_COST_PER_SEC: Decimal = dec!(0.000038);
 
 #[derive(Deserialize)]
 struct TaskInput {
@@ -615,10 +615,7 @@ mod tests {
 
         let fargate_time = FargateTime::new(started_at, stopped_at);
         assert_eq!(fargate_time.elapsed(), 10);
-        assert_eq!(
-            fargate_time.cost(FARGATE_COST_PER_SEC),
-            dec!(0.0228333333333)
-        );
+        assert_eq!(fargate_time.cost(FARGATE_COST_PER_SEC), dec!(0.000380));
     }
 
     // #[tokio::test]
