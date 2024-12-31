@@ -3,7 +3,7 @@ use aws_sdk_ecs::types::{
     AssignPublicIp, AwsVpcConfiguration, ContainerOverride, KeyValuePair, NetworkConfiguration,
     TaskOverride,
 };
-use bnaclient::types::{BnaPipelinePatch, BnaPipelinePost};
+use bnaclient::types::{BnaPipelinePatch, BnaPipelinePost, BnaPipelineStep, PipelineStatus};
 use bnacore::aws::get_aws_parameter_value;
 use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context, AWSS3};
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
@@ -63,6 +63,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
     let ecs_client = aws_sdk_ecs::Client::new(&aws_config);
 
     // Retrieve secrets and parameters.
+    info!("retrieving parameters");
     let ecs_cluster_arn = get_aws_parameter_value("BNA_CLUSTER_ARN").await?;
     let vpc_subnets = get_aws_parameter_value("PUBLIC_SUBNETS").await?;
     let vpc_security_groups = get_aws_parameter_value("BNA_TASK_SECURITY_GROUP").await?;
@@ -70,6 +71,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
     let s3_bucket = get_aws_parameter_value("BNA_BUCKET").await?;
 
     // Prepare the command.
+    info!("Preparing the container command");
     let mut container_command: Vec<String> = vec![
         "-vv".to_string(),
         "run".to_string(),
@@ -87,7 +89,10 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
         container_command.push(analysis_parameters.fips_code.clone().unwrap());
     };
 
+    info!(container_command = container_command.join(" "));
+
     // Prepare and run the task.
+    info!("preparing the task");
     let container_name = "brokenspoke-analyzer".to_string();
     let container_overrides = ContainerOverride::builder()
         .name(container_name)
@@ -134,12 +139,15 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
     };
 
     // Update the pipeline status.
+    info!("updating the pipeline status");
     client_authd
         .patch_pipelines_bna()
         .pipeline_id(state_machine_id)
         .body(
             BnaPipelinePatch::builder()
-                .fargate_task_arn(task.task_arn().expect("an existing task ARN").to_string()),
+                .fargate_task_arn(task.task_arn().expect("an existing task ARN").to_string())
+                .status(PipelineStatus::Processing)
+                .step(BnaPipelineStep::Analysis),
         )
         .send()
         .await?;
@@ -220,5 +228,47 @@ mod tests {
     //         .send()
     //         .await;
     //     dbg!(r);
+    // }
+
+    // #[tokio::test]
+    // async fn test_hanlder() {
+    //     let smi = Uuid::new_v4();
+    //     let json_input = json!(
+    //     {
+    //       "analysis_parameters": {
+    //         "country": "united states",
+    //         "city": "los angeles",
+    //         "region": "california",
+    //         "fips_code": "644000"
+    //       },
+    //       "receipt_handle": "AQEBMtAMiWSYxry6iA8NH0wHUYvOXNLS00piVRqNYWlI5Cs8RRhd21R+5L46DsJgQtbNyrnUATM6Dw70nQoKQ5nFaU3GjK+Aone90aWVAB7DPcYpnUt9uxKdRLdgeNUAAHvBT+K83cJgHwL2ek/fGHPEBCZGN8CV2ZXEDoY2GFfRB51el+4f61YqsIxOEOpgV0djb2D0B/WzS8i8BznanguRn3bT8iz0RXk60hZjp01PN9ljSqjpFwlXM0TLx3tI1RgVYconH2CGnII9qtWz0A4MciKW0vOnKyA70AfUgDPgFFmw6OTwuPeLedCt6lhpYc7fZUGuRAc/Ozz8uAkEI6eTm2yxh1p0OJzXDoqEEaoFgsHHaHOgulmL5QwhZw3z/lBEDii8g4MTZ6UqekkK9dcxew==",
+    //       "context": {
+    //         "Execution": {
+    //           "Id": "arn:aws:states:us-west-2:123456789012:execution:brokenspoke-analyzer:73f24dfc-8978-4d93-a4f7-29d1b0263e4a",
+    //           "Name": "73f24dfc-8978-4d93-a4f7-29d1b0263e4a",
+    //           "RoleArn": "arn:aws:iam::123456789012:role/role",
+    //           "StartTime": "+002024-02-13T00:22:50.787000000Z"
+    //         },
+    //         "State": {
+    //           "EnteredTime": "+002024-02-13T00:22:51.019000000Z",
+    //           "Name": "BNAContext"
+    //         },
+    //         "StateMachine": {
+    //           "Id": "arn:aws:states:us-west-2:123456789012:stateMachine:brokenspoke-analyzer",
+    //           "Name": "brokenspoke-analyzer"
+    //         },
+    //         "Id":smi
+    //       },
+    //       "aws_s3": {
+    //         "destination": "united states/california/los angeles/24.12.1"
+    //       }
+    //     });
+    //     let payload = serde_json::from_value::<TaskInput>(json_input).unwrap();
+    //     let mut context = lambda_runtime::Context::default();
+    //     context.request_id = "ID".to_string();
+    //     std::env::set_var("BNA_API_HOSTNAME", "http://localhost:3000");
+    //     std::env::set_var("BNA_BUCKET", "bna-analyzer");
+    //     let event = LambdaEvent::new(payload, context);
+    //     function_handler(event).await.unwrap();
     // }
 }
