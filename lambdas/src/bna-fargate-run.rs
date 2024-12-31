@@ -3,10 +3,9 @@ use aws_sdk_ecs::types::{
     AssignPublicIp, AwsVpcConfiguration, ContainerOverride, KeyValuePair, NetworkConfiguration,
     TaskOverride,
 };
-use bnaclient::types::{AnalysisPatch, AnalysisPost, AnalysisStatus, StateMachineId, Step};
+use bnaclient::types::{BnaPipelinePatch, BnaPipelinePost};
 use bnacore::aws::get_aws_parameter_value;
 use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context, AWSS3};
-use chrono::Utc;
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -48,13 +47,10 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
         "create a new Brokensspoke pipeline entry",
     );
     client_authd
-        .post_ratings_analyses()
+        .post_pipelines_bna()
         .body(
-            AnalysisPost::builder()
-                .state_machine_id(StateMachineId(state_machine_id))
-                .start_time(Utc::now())
-                .status(AnalysisStatus::Processing)
-                .step(Step::Setup)
+            BnaPipelinePost::builder()
+                .state_machine_id(state_machine_id)
                 .sqs_message(serde_json::to_string(analysis_parameters)?)
                 .s3_bucket(aws_s3.destination.clone()),
         )
@@ -138,10 +134,10 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
 
     // Update the pipeline status.
     client_authd
-        .patch_analysis()
-        .analysis_id(StateMachineId(state_machine_id))
+        .patch_pipelines_bna()
+        .pipeline_id(state_machine_id)
         .body(
-            AnalysisPatch::builder()
+            BnaPipelinePatch::builder()
                 .fargate_task_arn(task.task_arn().expect("an existing task ARN").to_string()),
         )
         .send()

@@ -2,15 +2,15 @@ use aws_config::{BehaviorVersion, SdkConfig};
 use aws_smithy_types_convert::date_time::DateTimeExt;
 use bnaclient::types::{
     builder::{self},
-    AnalysisPatch, AnalysisStatus, BnaPost, BnaSummary, City, CityPost, CoreServices, Country,
-    Infrastructure, Opportunity, People, Recreation, Retail, StateMachineId, Step, Transit,
+    BnaPipelinePatch, BnaPipelineStep, City, CityPost, CoreServices, Country, Infrastructure,
+    Opportunity, People, PipelineStatus, RatingPost, Recreation, Retail, Transit,
 };
 use bnacore::aws::get_aws_parameter_value;
 use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context, Fargate, AWSS3};
 use csv::ReaderBuilder;
 use heck::ToTitleCase;
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
-use rust_decimal::{prelude::ToPrimitive, Decimal};
+use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
 use simple_error::SimpleError;
@@ -19,7 +19,7 @@ use tracing::info;
 use uuid::Uuid;
 
 const OVERALL_SCORES_COUNT: usize = 23;
-const FARGATE_COST_PER_SEC: Decimal = dec!(0.000038);
+const FARGATE_COST_PER_SEC: Decimal = dec!(0.000071);
 
 #[derive(Deserialize)]
 struct TaskInput {
@@ -114,7 +114,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
     // Post a new entry via the API.
     info!("Post a new BNA entry via the API...");
     info!("New entry: {:?}", &rating_post);
-    client_authd.post_ratings().body(rating_post).send().await?;
+    client_authd.post_rating().body(rating_post).send().await?;
 
     // TODO: Patch city census.
 
@@ -123,19 +123,22 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
 
     // Update the pipeline status.
     info!("updating pipeline...");
-    let start_time = started_at.to_chrono_utc().ok();
-    let end_time = stopped_at.to_chrono_utc().ok();
+    let start_time = started_at
+        .to_chrono_utc()
+        .expect("there must be a start time");
+    let end_time = stopped_at
+        .to_chrono_utc()
+        .expect("there must be an end time");
     let _r = client_authd
-        .patch_analysis()
-        .analysis_id(StateMachineId(state_machine_id))
+        .patch_pipelines_bna()
+        .pipeline_id(state_machine_id)
         .body(
-            AnalysisPatch::builder()
-                .cost(cost.to_f64().expect("no overflow"))
+            BnaPipelinePatch::builder()
+                .cost(cost.to_string())
                 .end_time(end_time)
-                .results_posted(true)
                 .start_time(start_time)
-                .status(AnalysisStatus::Completed)
-                .step(Step::Cleanup),
+                .status(PipelineStatus::Completed)
+                .step(BnaPipelineStep::Cleanup),
         )
         .send()
         .await?;
@@ -191,7 +194,7 @@ async fn get_or_create_city(
         // Create the city.
         let c = CityPost::builder()
             .country(normalized_country)
-            .state(Some(region.to_title_case()))
+            .state(region.to_title_case())
             .name(name.to_title_case());
         let city = client.post_city().body(c).send().await?;
         city_id = city.id;
@@ -234,8 +237,10 @@ fn scores_to_bnapost(
     overall_scores: OverallScores,
     version: String,
     city_id: Uuid,
-) -> builder::BnaPost {
-    BnaPost::builder()
+) -> builder::RatingPost {
+    RatingPost::builder()
+        .city_id(city_id)
+        .version(version)
         .core_services(
             CoreServices::builder()
                 .dentists(overall_scores.get_normalized_score("core_services_dentists"))
@@ -271,29 +276,22 @@ fn scores_to_bnapost(
                         .unwrap_or_default(),
                 ),
         )
-        .people(People::builder().score(overall_scores.get_normalized_score("people")))
+        .people(People::builder().people(overall_scores.get_normalized_score("people")))
         .recreation(
             Recreation::builder()
                 .community_centers(
                     overall_scores.get_normalized_score("recreation_community_centers"),
                 )
                 .parks(overall_scores.get_normalized_score("recreation_parks"))
-                .recreation_trails(overall_scores.get_normalized_score("recreation_trails"))
+                .trails(overall_scores.get_normalized_score("recreation_trails"))
                 .score(
                     overall_scores
                         .get_normalized_score("recreation")
                         .unwrap_or_default(),
                 ),
         )
-        .retail(Retail::builder().score(overall_scores.get_normalized_score("retail")))
-        .summary(
-            BnaSummary::builder()
-                .rating_id(Uuid::new_v4())
-                .city_id(city_id)
-                .version(version)
-                .score(0.0),
-        )
-        .transit(Transit::builder().score(overall_scores.get_normalized_score("transit")))
+        .retail(Retail::builder().retail(overall_scores.get_normalized_score("retail")))
+        .transit(Transit::builder().transit(overall_scores.get_normalized_score("transit")))
 }
 
 async fn fetch_s3_object_as_bytes(
@@ -615,7 +613,7 @@ mod tests {
 
         let fargate_time = FargateTime::new(started_at, stopped_at);
         assert_eq!(fargate_time.elapsed(), 10);
-        assert_eq!(fargate_time.cost(FARGATE_COST_PER_SEC), dec!(0.000380));
+        assert_eq!(fargate_time.cost(FARGATE_COST_PER_SEC), dec!(0.000710));
     }
 
     // #[tokio::test]
