@@ -1,4 +1,4 @@
-use bnaclient::types::{AnalysisPatch, StateMachineId, Step};
+use bnaclient::types::{BnaPipelinePatch, BnaPipelineStep};
 use bnacore::aws::get_aws_parameter_value;
 use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context};
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
@@ -34,9 +34,9 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
 
     // Update the pipeline status.
     client_authd
-        .patch_analysis()
-        .analysis_id(StateMachineId(state_machine_id))
-        .body(AnalysisPatch::builder().step(Step::Cleanup))
+        .patch_pipelines_bna()
+        .pipeline_id(state_machine_id)
+        .body(BnaPipelinePatch::builder().step(BnaPipelineStep::Cleanup))
         .send()
         .await?;
 
