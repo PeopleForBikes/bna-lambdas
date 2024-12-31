@@ -43,10 +43,10 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
 
     // Create a new pipeline entry.
     info!(
-        state_machine_id = state_machine_context.execution.name,
-        "create a new Brokensspoke pipeline entry",
+        state_machine_name = state_machine_context.execution.name,
+        "create a new Brokenspoke pipeline entry",
     );
-    client_authd
+    let r = client_authd
         .post_pipelines_bna()
         .body(
             BnaPipelinePost::builder()
@@ -56,6 +56,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
         )
         .send()
         .await?;
+    info!("pipeline created: {:#?}", r);
 
     // Prepare the AWS client.
     let aws_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
@@ -200,4 +201,24 @@ mod tests {
         }"#;
         let _deserialized = serde_json::from_str::<TaskInput>(json_input).unwrap();
     }
+
+    // #[tokio::test]
+    // async fn test_create_pipeline() {
+    //     // let auth = AuthResponse {
+    //     //     access_token: String::from(""),
+    //     //     expires_in: 3600,
+    //     //     token_type: String::from("Bearer"),
+    //     // };
+    //     let client = bnaclient::Client::new("http://localhost:3000");
+    //     let r = client
+    //         .post_pipelines_bna()
+    //         .body(
+    //             BnaPipelinePost::builder()
+    //                 .state_machine_id(Uuid::new_v4())
+    //                 .s3_bucket("/destination".to_string()),
+    //         )
+    //         .send()
+    //         .await;
+    //     dbg!(r);
+    // }
 }
