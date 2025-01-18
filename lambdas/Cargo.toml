@@ -12,6 +12,7 @@ aws-smithy-types-convert = { workspace = true, features = ["convert-chrono"] }
 aws_lambda_events = { workspace = true }
 bnaclient = { workspace = true }
 bnacore = { workspace = true }
+bytes = "1.9.0"
 chrono = { workspace = true }
 csv = { workspace = true }
 fontdb = { workspace = true }
