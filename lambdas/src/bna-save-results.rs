@@ -241,6 +241,11 @@ fn scores_to_bnapost(
     RatingPost::builder()
         .city_id(city_id)
         .version(version)
+        .score(
+            overall_scores
+                .get_normalized_score("overall_score")
+                .expect("overall score must be provided"),
+        )
         .core_services(
             CoreServices::builder()
                 .dentists(overall_scores.get_normalized_score("core_services_dentists"))
@@ -672,9 +677,9 @@ mod tests {
     //     dbg!(city);
     // }
 
-    //     #[test(tokio::test)]
-    //     async fn test_post_ratings() {
-    //         let data = r#"id,score_id,score_original,score_normalized,human_explanation
+    // #[test(tokio::test)]
+    // async fn test_post_ratings() {
+    //     let data = r#"id,score_id,score_original,score_normalized,human_explanation
     // 1,people,0.1917,19.1700,"On average, census blocks in the neighborhood received this population score."
     // 2,opportunity_employment,0.0826,8.2600,"On average, census blocks in the neighborhood received this employment score."
     // 3,opportunity_k12_education,0.0831,8.3100,"On average, census blocks in the neighborhood received this K12 schools score."
@@ -698,21 +703,22 @@ mod tests {
     // 21,population_total,2960.0000,,Total population of boundary
     // 22,total_miles_low_stress,9.3090,9.3000,Total low-stress miles
     // 23,total_miles_high_stress,64.5092,64.5000,Total high-stress miles"#;
-    //         let scores = parse_overall_scores(data.as_bytes()).unwrap();
-    //         let bna_post_builder = scores_to_bnapost(
-    //             scores,
-    //             "24.12".to_string(),
-    //             "aac22433-37d4-4cb7-b6b8-e7e77cbbcf41"
-    //                 .parse::<Uuid>()
-    //                 .unwrap(),
-    //         );
-    //         dbg!(&bna_post_builder);
-    //         let bna_post: BnaPost = bna_post_builder.try_into().unwrap();
-    //         println!("{}", serde_json::to_string(&bna_post).unwrap());
-    //         let client = bnaclient::Client::new("http://localhost:3000");
-    //         let response = client.post_ratings().body(bna_post).send().await.unwrap();
-    //         dbg!(response);
-    //     }
+    //     let scores = parse_overall_scores(data.as_bytes()).unwrap();
+    //     let bna_post_builder = scores_to_bnapost(
+    //         scores,
+    //         "24.12".to_string(),
+    //         // United States,	Illinois,	Highland Park
+    //         "09c049b6-213b-405c-bc4e-178346ff814d"
+    //             .parse::<Uuid>()
+    //             .unwrap(),
+    //     );
+    //     // dbg!(&bna_post_builder);
+    //     let bna_post: RatingPost = bna_post_builder.try_into().unwrap();
+    //     println!("{}", serde_json::to_string(&bna_post).unwrap());
+    //     let client = bnaclient::Client::new("http://localhost:3000");
+    //     let response = client.post_rating().body(bna_post).send().await.unwrap();
+    //     dbg!(response);
+    // }
 
     // #[test(tokio::test)]
     // async fn test_create_pipeline() {
