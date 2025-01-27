@@ -5,7 +5,7 @@ resolver = "2"
 [workspace.dependencies]
 async-std = "1.13.0"
 aws_lambda_events = "0.16.0"
-aws-config = "1.5.14"
+aws-config = "1.5.15"
 aws-sdk-ecs = "1.62.1"
 aws-sdk-s3 = "1.71.0"
 aws-sdk-sqs = "1.54.0"
