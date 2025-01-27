@@ -13,7 +13,7 @@ aws-smithy-types-convert = "0.60.8"
 bnaclient = { git = "https://github.com/PeopleForBikes/bna-api", rev = "a780893" }
 bnacore = { git = "https://github.com/PeopleForBikes/brokenspoke", rev = "87a367b" }
 chrono = "0.4.39"
-clap = "4.5.20"
+clap = "4.5.27"
 color-eyre = "0.6.2"
 csv = "1.3.1"
 dotenv = "0.15.0"
