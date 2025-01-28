@@ -2,8 +2,8 @@ use aws_config::{BehaviorVersion, SdkConfig};
 use aws_smithy_types_convert::date_time::DateTimeExt;
 use bnaclient::types::{
     builder::{self},
-    BnaPipelinePatch, BnaPipelineStep, City, CityPost, CoreServices, Country, Infrastructure,
-    Opportunity, People, PipelineStatus, RatingPost, Recreation, Retail, Transit,
+    BnaPipelinePatch, BnaPipelineStep, CensusPost, City, CityPost, CoreServices, Country,
+    Infrastructure, Opportunity, People, PipelineStatus, RatingPost, Recreation, Retail, Transit,
 };
 use bnacore::aws::get_aws_parameter_value;
 use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context, Fargate, AWSS3};
@@ -32,6 +32,7 @@ struct TaskInput {
 #[derive(Deserialize, Clone)]
 struct OverallScore {
     pub score_id: String,
+    pub score_original: Option<f64>,
     pub score_normalized: Option<f64>,
 }
 
@@ -53,6 +54,14 @@ impl OverallScores {
     fn get_normalized_score(&self, score_id: &str) -> Option<f64> {
         self.get_overall_score(score_id)
             .and_then(|s| s.score_normalized)
+    }
+
+    /// Retrieve the population.
+    fn population(&self) -> u32 {
+        self.get_overall_score("population_total")
+            .expect("population is mandatory")
+            .score_original
+            .expect("population is mandatory") as u32
     }
 }
 
@@ -96,6 +105,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
     // Parse the results.
     info!("Parse the results...");
     let overall_scores = parse_overall_scores(buffer.as_slice())?;
+    let population = overall_scores.population();
 
     // Query city.
     info!("Check for existing city...");
@@ -115,8 +125,6 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
     info!("Post a new BNA entry via the API...");
     info!("New entry: {:?}", &rating_post);
     client_authd.post_rating().body(rating_post).send().await?;
-
-    // TODO: Patch city census.
 
     // Compute the time it took to run the fargate task and its cost;
     let (started_at, stopped_at, cost) = update_fargate_details(&config, fargate).await;
@@ -139,6 +147,27 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
                 .start_time(start_time)
                 .status(PipelineStatus::Completed)
                 .step(BnaPipelineStep::Cleanup),
+        )
+        .send()
+        .await?;
+
+    // TODO: Patch city census.
+    info!("updating census...");
+    let _r = client_authd
+        .post_city_census()
+        .country(country)
+        .region(region)
+        .name(name)
+        .body(
+            CensusPost::builder()
+                .fips_code(
+                    analysis_parameters
+                        .fips_code
+                        .clone()
+                        .unwrap_or("0".to_string()),
+                )
+                .population(population)
+                .pop_size(0),
         )
         .send()
         .await?;
@@ -187,10 +216,10 @@ async fn get_or_create_city(
 
     let city_id: Uuid;
     if let Some(city) = city {
-        info!("The city exists, update the population...");
+        info!("The city already exists.");
         city_id = city.id;
     } else {
-        info!("Create a new city...");
+        info!("Creating a new city...");
         // Create the city.
         let c = CityPost::builder()
             .country(normalized_country)

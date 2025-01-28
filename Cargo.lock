@@ -307,9 +307,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-ecs"
-version = "1.62.1"
+version = "1.64.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51035f497df46e7dd1fe202294f1ef15e4d8e110bd43e46e14647cb210cca8c3"
+checksum = "a10d3d116c1ef44c4379e3a0d6bdaa5c4c40def543e1eb9ad77a5be1188bae47"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -364,9 +364,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-sqs"
-version = "1.54.0"
+version = "1.56.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebfafe6700b71329b055d118c97ec00c6d569a5a56fd2a07d8b2e13d7ace32a5"
+checksum = "ca6b2f438a99c189b89279ca88ed05c2bcdcfcacd7d78a821b8650166040b9b4"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -2644,9 +2644,9 @@ checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
 name = "minijinja"
-version = "2.6.0"
+version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "212b4cab3aad057bc6e611814472905546c533295723b9e26a31c7feb19a8e65"
+checksum = "cff7b8df5e85e30b87c2b0b3f58ba3a87b68e133738bf512a7713769326dbca9"
 dependencies = [
  "serde",
 ]
@@ -3159,7 +3159,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3763,9 +3763,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.137"
+version = "1.0.138"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "930cfb6e6abf99298aaad7d29abbef7a9999a9a8806a40088f55f0dcec03146b"
+checksum = "d434192e7da787e94a6ea7e9670b26a036d0ca41e0b7efb2676dd32bae872949"
 dependencies = [
  "itoa",
  "memchr",
@@ -4947,7 +4947,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
