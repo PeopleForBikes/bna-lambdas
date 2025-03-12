@@ -32,6 +32,7 @@ struct TaskInput {
 #[derive(Deserialize, Clone)]
 struct OverallScore {
     pub score_id: String,
+    pub score_original: Option<f64>,
     pub score_normalized: Option<f64>,
 }
 
@@ -53,6 +54,23 @@ impl OverallScores {
     fn get_normalized_score(&self, score_id: &str) -> Option<f64> {
         self.get_overall_score(score_id)
             .and_then(|s| s.score_normalized)
+    }
+
+    /// Retrieve the population.
+    pub fn get_population(&self) -> i32 {
+        self.get_overall_score("population_total")
+            .expect("population is mandatory")
+            .score_original
+            .expect("population must have a value") as i32
+    }
+
+    /// Retrieve the pop_size.
+    pub fn get_pop_size(&self) -> i32 {
+        match self.get_population() {
+            0..50000 => 0,
+            50000..300000 => 1,
+            _ => 2,
+        }
     }
 }
 
@@ -115,8 +133,6 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
     info!("Post a new BNA entry via the API...");
     info!("New entry: {:?}", &rating_post);
     client_authd.post_rating().body(rating_post).send().await?;
-
-    // TODO: Patch city census.
 
     // Compute the time it took to run the fargate task and its cost;
     let (started_at, stopped_at, cost) = update_fargate_details(&config, fargate).await;
@@ -238,8 +254,12 @@ fn scores_to_bnapost(
     version: String,
     city_id: Uuid,
 ) -> builder::RatingPost {
+    let population = overall_scores.get_population();
+    let pop_size = overall_scores.get_pop_size();
     RatingPost::builder()
         .city_id(city_id)
+        .population(population)
+        .pop_size(pop_size)
         .version(version)
         .score(
             overall_scores
