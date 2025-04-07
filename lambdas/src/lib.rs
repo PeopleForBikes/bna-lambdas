@@ -197,7 +197,7 @@ impl AWSS3 {
     pub fn get_version(&self) -> String {
         self.destination
             .split_terminator('/')
-            .last()
+            .next_back()
             .expect("the destination field must contain a `/` symbol")
             .to_owned()
     }
