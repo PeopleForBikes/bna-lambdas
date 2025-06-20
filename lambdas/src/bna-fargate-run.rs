@@ -27,6 +27,7 @@ struct TaskOutput {
 
 const FARGATE_MAX_TASK: i32 = 1;
 const DATABASE_URL: &str = "postgresql://postgres:postgres@localhost:5432/postgres";
+const BNA_EXPERIMENTAL: &str = "1";
 
 async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, Error> {
     // Retrieve API hostname.
@@ -101,6 +102,12 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
             KeyValuePair::builder()
                 .name("DATABASE_URL".to_string())
                 .value(DATABASE_URL)
+                .build(),
+        )
+        .environment(
+            KeyValuePair::builder()
+                .name("BNA_EXPERIMENTAL")
+                .value(BNA_EXPERIMENTAL)
                 .build(),
         )
         .build();
