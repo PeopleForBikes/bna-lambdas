@@ -3,7 +3,7 @@ use aws_smithy_types_convert::date_time::DateTimeExt;
 use bnaclient::types::{
     builder::{self},
     BnaPipelinePatch, BnaPipelineStep, City, CityPost, CoreServices, Country, Infrastructure,
-    Opportunity, People, PipelineStatus, RatingPost, Recreation, Retail, Transit,
+    Measure, Opportunity, People, PipelineStatus, RatingPost, Recreation, Retail, Transit,
 };
 use bnacore::aws::get_aws_parameter_value;
 use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context, Fargate, AWSS3};
@@ -19,6 +19,7 @@ use tracing::info;
 use uuid::Uuid;
 
 const OVERALL_SCORES_COUNT: usize = 23;
+const MILEAGE_MAX_FEATURE_COUNT: usize = 5;
 const FARGATE_COST_PER_SEC: Decimal = dec!(0.000071);
 
 #[derive(Deserialize)]
@@ -74,6 +75,52 @@ impl OverallScores {
     }
 }
 
+#[derive(Deserialize, Clone)]
+struct Mileage {
+    pub feature_type: String,
+    pub total_mileage: f64,
+}
+
+#[derive(Deserialize)]
+struct Mileages(HashMap<String, f64>);
+
+impl Mileages {
+    /// Create an empty Mileages.
+    pub fn new() -> Self {
+        Mileages(HashMap::with_capacity(MILEAGE_MAX_FEATURE_COUNT))
+    }
+
+    /// Retrieve the normalized score of an OverallScore item by id.
+    fn get(&self, feature_type: &str) -> Option<f64> {
+        self.0.get(feature_type).copied()
+    }
+
+    /// Retrieve buffered lane mileage.
+    pub fn get_buffered_lane(&self) -> Option<f64> {
+        self.get("buffered_lane")
+    }
+
+    /// Retrieve lane mileage.
+    pub fn get_lane(&self) -> Option<f64> {
+        self.get("lane")
+    }
+
+    /// Retrieve sharrow mileage.
+    pub fn get_sharrow(&self) -> Option<f64> {
+        self.get("sharrow")
+    }
+
+    /// Retrieve off-street path mileage.
+    pub fn get_path(&self) -> Option<f64> {
+        self.get("path")
+    }
+
+    /// Retrieve track mileage.
+    pub fn get_track(&self) -> Option<f64> {
+        self.get("track")
+    }
+}
+
 async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
     // Read the task inputs.
     info!("Reading input...");
@@ -115,6 +162,18 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
     info!("Parse the results...");
     let overall_scores = parse_overall_scores(buffer.as_slice())?;
 
+    // Download the mileage CSV file.
+    let mileage_csv = format!("{}/mileage.csv", aws_s3.destination.clone());
+    info!(
+        "Download the CSV file with the mileage from {}...",
+        mileage_csv
+    );
+    let buffer = fetch_s3_object_as_bytes(&s3_client, &bna_bucket, &mileage_csv).await?;
+
+    // Parse the mileages.
+    info!("Parse the results...");
+    let mileages = parse_mileages(buffer.as_slice())?;
+
     // Query city.
     info!("Check for existing city...");
     let country = &analysis_parameters.country;
@@ -127,7 +186,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
 
     // Convert the overall scores to a BNAPost struct.
     let version = aws_s3.get_version();
-    let rating_post = scores_to_bnapost(overall_scores, version, city_id);
+    let rating_post = scores_to_bnapost(overall_scores, mileages, version, city_id);
 
     // Post a new entry via the API.
     info!("Post a new BNA entry via the API...");
@@ -170,6 +229,18 @@ fn parse_overall_scores(data: &[u8]) -> Result<OverallScores, Error> {
         overall_scores.0.insert(score.score_id.clone(), score);
     }
     Ok(overall_scores)
+}
+
+fn parse_mileages(data: &[u8]) -> Result<Mileages, Error> {
+    let mut mileages = Mileages::new();
+    let mut rdr = ReaderBuilder::new().flexible(true).from_reader(data);
+    for result in rdr.deserialize() {
+        let mileage: Mileage = result?;
+        mileages
+            .0
+            .insert(mileage.feature_type.clone(), mileage.total_mileage);
+    }
+    Ok(mileages)
 }
 
 /// Get a city or create it if it does not exist.
@@ -251,6 +322,7 @@ impl FargateTime {
 
 fn scores_to_bnapost(
     overall_scores: OverallScores,
+    mileages: Mileages,
     version: String,
     city_id: Uuid,
 ) -> builder::RatingPost {
@@ -317,6 +389,14 @@ fn scores_to_bnapost(
         )
         .retail(Retail::builder().retail(overall_scores.get_normalized_score("retail")))
         .transit(Transit::builder().transit(overall_scores.get_normalized_score("transit")))
+        .measure(
+            Measure::builder()
+                .buffered_lane(mileages.get_buffered_lane())
+                .lane(mileages.get_lane())
+                .path(mileages.get_path())
+                .sharrow(mileages.get_sharrow())
+                .track(mileages.get_track()),
+        )
 }
 
 async fn fetch_s3_object_as_bytes(
@@ -460,7 +540,19 @@ mod tests {
 21,population_total,2960.0000,,Total population of boundary
 22,total_miles_low_stress,9.3090,9.3000,Total low-stress miles
 23,total_miles_high_stress,64.5092,64.5000,Total high-stress miles"#;
-        let _scores = parse_overall_scores(data.as_bytes()).unwrap();
+        let scores = parse_overall_scores(data.as_bytes()).unwrap();
+        assert_eq!(scores.0.len(), 23)
+    }
+
+    #[test]
+    fn test_parse_mileages() {
+        let data = r#"feature_type,total_mileage
+lane,4.099601260392348
+track,0.02617705888780765
+sharrow,19.06297888351705
+buffered_lane,0.052071779313949434"#;
+        let mileages = parse_mileages(data.as_bytes()).unwrap();
+        assert_eq!(mileages.0.len(), 4)
     }
 
     // #[test]
