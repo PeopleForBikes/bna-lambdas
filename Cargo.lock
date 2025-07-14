@@ -868,8 +868,8 @@ dependencies = [
 
 [[package]]
 name = "bnaclient"
-version = "1.1.0"
-source = "git+https://github.com/PeopleForBikes/bna-api#bf671425504fac274be6a58b41ceabd192fcd8b8"
+version = "1.2.0"
+source = "git+https://github.com/PeopleForBikes/bna-api#eea5c9af81034fe7f9f3c4a7cfd6d3855c826176"
 dependencies = [
  "bytes",
  "chrono",
@@ -3532,9 +3532,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.12.20"
+version = "0.12.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eabf4c97d9130e2bf606614eb937e86edac8292eaa6f422f995d7e8de1eb1813"
+checksum = "cbc931937e6ca3a06e3b6c0aa7841849b160a90351d6ab467a8b9b9959767531"
 dependencies = [
  "base64 0.22.1",
  "bytes",
