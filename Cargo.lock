@@ -863,7 +863,7 @@ dependencies = [
 [[package]]
 name = "bnaclient"
 version = "1.2.0"
-source = "git+https://github.com/PeopleForBikes/bna-api#cf71976ef5e7729f4b02483925ad9f9b1a26cd1b"
+source = "git+https://github.com/PeopleForBikes/bna-api#6c511b7043601c4838ae0285c250cc9fb9ad8340"
 dependencies = [
  "bytes",
  "chrono",
@@ -3663,9 +3663,9 @@ dependencies = [
 
 [[package]]
 name = "rust_decimal_macros"
-version = "1.37.1"
+version = "1.38.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6268b74858287e1a062271b988a0c534bf85bbeb567fe09331bf40ed78113d5"
+checksum = "6dae310b657d2d686616e215c84c3119c675450d64c4b9f9e3467209191c3bcf"
 dependencies = [
  "quote",
  "syn 2.0.100",
@@ -4001,14 +4001,15 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.143"
+version = "1.0.145"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d401abef1d108fbd9cbaebc3e46611f4b1021f714a0597a71f41ee463f5f4a5a"
+checksum = "402a6f66d8c709116cf22f558eab210f5a50187f702eb4d7e5ef38d9a7f1c79c"
 dependencies = [
  "itoa",
  "memchr",
  "ryu",
  "serde",
+ "serde_core",
 ]
 
 [[package]]
