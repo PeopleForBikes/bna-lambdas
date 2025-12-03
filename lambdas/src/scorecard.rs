@@ -149,22 +149,29 @@ mod tests {
           "region": "Brussels"
         }"#;
 
-        let message = aws_lambda_events::sqs::SqsMessage {
-            message_id: Some("MessageID_1".to_string()),
-            receipt_handle: Some("ReceiptHandle".to_string()),
-            body: Some(body.to_string()),
-            md5_of_body: Some("fce0ea8dd236ccb3ed9b37dae260836f".to_string()),
-            md5_of_message_attributes: None,
-            attributes: HashMap::new(),
-            message_attributes: HashMap::new(),
-            event_source_arn: None,
-            event_source: None,
-            aws_region: None,
-        };
+        let mut message = aws_lambda_events::sqs::SqsMessage::default();
+        message.message_id = Some("MessageID_1".to_string());
+        message.receipt_handle = Some("ReceiptHandle".to_string());
+        message.body = Some(body.to_string());
+        message.md5_of_body = Some("fce0ea8dd236ccb3ed9b37dae260836f".to_string());
+        // let message = aws_lambda_events::sqs::SqsMessage {
+        //     message_id: Some("MessageID_1".to_string()),
+        //     receipt_handle: Some("ReceiptHandle".to_string()),
+        //     body: Some(body.to_string()),
+        //     md5_of_body: Some("fce0ea8dd236ccb3ed9b37dae260836f".to_string()),
+        //     md5_of_message_attributes: None,
+        //     attributes: HashMap::new(),
+        //     message_attributes: HashMap::new(),
+        //     event_source_arn: None,
+        //     event_source: None,
+        //     aws_region: None,
+        // };
 
-        let payload = SqsEvent {
-            records: vec![message],
-        };
+        let mut payload = SqsEvent::default();
+        payload.records = vec![message];
+        // let payload = SqsEvent {
+        //     records: vec![message],
+        // };
 
         let _event = LambdaEvent { payload, context };
 
