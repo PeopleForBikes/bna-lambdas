@@ -23,9 +23,10 @@ lambda_runtime = { workspace = true }
 minijinja = { workspace = true }
 reqwest = { workspace = true, features = [
   "blocking",
+  "form",
   "json",
   "native-tls-vendored",
-  "rustls-tls",
+  "rustls",
 ] }
 rust_decimal = { workspace = true }
 rust_decimal_macros = { workspace = true }
