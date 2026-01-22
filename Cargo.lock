@@ -856,7 +856,7 @@ dependencies = [
 [[package]]
 name = "bnaclient"
 version = "1.4.1"
-source = "git+https://github.com/PeopleForBikes/bna-api#095ea6a66d5e9bcfc54eacf183b623939e3e1263"
+source = "git+https://github.com/PeopleForBikes/bna-api#70cc3508e1cbdfd3f57d72dca69fbf9703db9eb2"
 dependencies = [
  "bytes",
  "chrono",
