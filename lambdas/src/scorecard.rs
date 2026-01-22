@@ -108,8 +108,6 @@ async fn main() -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::*;
     use lambda_runtime::{Context, LambdaEvent};
 
