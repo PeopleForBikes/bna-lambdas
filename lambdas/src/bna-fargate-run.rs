@@ -76,6 +76,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
     let mut container_command: Vec<String> = vec![
         "-vv".to_string(),
         "run".to_string(),
+        "--no-cache".to_string(),
         "--with-export".to_string(),
         "s3_custom".to_string(),
         "--s3-bucket".to_string(),
