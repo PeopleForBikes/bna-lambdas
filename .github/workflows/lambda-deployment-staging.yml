@@ -16,7 +16,11 @@ permissions:
   # This is required for actions/checkout.
   contents: read
 
-concurrency: ${{ github.ref }}
+concurrency:
+  # Ensure sequential run per repository, i.e. 1 deployment at a time.
+  group: ${{ github.repository }}
+  # Ensure new runs will wait until the lock is released.
+  cancel-in-progress: false
 
 jobs:
   deploy:
