@@ -7,7 +7,7 @@ async-std = "1.13.2"
 aws_lambda_events = "1.0.3"
 aws-config = "1.8.12"
 aws-sdk-ecs = "1.110.0"
-aws-sdk-s3 = "1.120.0"
+aws-sdk-s3 = "1.121.0"
 aws-sdk-sqs = "1.92.0"
 aws-smithy-types-convert = "0.60.12"
 bnaclient = { git = "https://github.com/PeopleForBikes/bna-api", version = "1.4.1" }
