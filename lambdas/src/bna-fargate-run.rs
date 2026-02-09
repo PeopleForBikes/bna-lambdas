@@ -67,9 +67,10 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
     info!("retrieving parameters");
     let ecs_cluster_arn = get_aws_parameter_value("BNA_CLUSTER_ARN").await?;
     let vpc_subnets = get_aws_parameter_value("PUBLIC_SUBNETS").await?;
-    let vpc_security_groups = get_aws_parameter_value("BNA_TASK_SECURITY_GROUP").await?;
+    let task_security_group = get_aws_parameter_value("BNA_TASK_SECURITY_GROUP").await?;
     let task_definition = get_aws_parameter_value("BNA_TASK_DEFINITION").await?;
     let s3_bucket = get_aws_parameter_value("BNA_BUCKET").await?;
+    let _cache_directory = get_aws_parameter_value("BNA_CACHE_DIRECTORY").await?;
 
     // Prepare the command.
     info!("Preparing the container command");
@@ -77,6 +78,8 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
         "-vv".to_string(),
         "run".to_string(),
         "--no-cache".to_string(),
+        // "--cache-dir".to_string(),
+        // cache_directory,
         "--with-export".to_string(),
         "s3_custom".to_string(),
         "--s3-bucket".to_string(),
@@ -115,11 +118,13 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
     let task_overrides = TaskOverride::builder()
         .container_overrides(container_overrides)
         .build();
-    let aws_vpc_configuration = AwsVpcConfiguration::builder()
-        .subnets(vpc_subnets)
-        .security_groups(vpc_security_groups)
-        .assign_public_ip(AssignPublicIp::Enabled)
-        .build()?;
+    let mut aws_vpc_configuration_builder = AwsVpcConfiguration::builder()
+        .security_groups(task_security_group)
+        .assign_public_ip(AssignPublicIp::Enabled);
+    for subnet in vpc_subnets.split(',').map(String::from) {
+        aws_vpc_configuration_builder = aws_vpc_configuration_builder.subnets(subnet);
+    }
+    let aws_vpc_configuration = aws_vpc_configuration_builder.build()?;
     let network_configuration = NetworkConfiguration::builder()
         .awsvpc_configuration(aws_vpc_configuration)
         .build();
