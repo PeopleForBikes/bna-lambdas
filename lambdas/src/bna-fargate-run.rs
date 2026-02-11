@@ -70,16 +70,15 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
     let task_security_group = get_aws_parameter_value("BNA_TASK_SECURITY_GROUP").await?;
     let task_definition = get_aws_parameter_value("BNA_TASK_DEFINITION").await?;
     let s3_bucket = get_aws_parameter_value("BNA_BUCKET").await?;
-    let _cache_directory = get_aws_parameter_value("BNA_CACHE_DIRECTORY").await?;
+    let cache_directory = get_aws_parameter_value("BNA_CACHE_DIRECTORY").await?;
 
     // Prepare the command.
     info!("Preparing the container command");
     let mut container_command: Vec<String> = vec![
         "-vv".to_string(),
         "run".to_string(),
-        "--no-cache".to_string(),
-        // "--cache-dir".to_string(),
-        // cache_directory,
+        "--cache-dir".to_string(),
+        cache_directory,
         "--with-export".to_string(),
         "s3_custom".to_string(),
         "--s3-bucket".to_string(),
