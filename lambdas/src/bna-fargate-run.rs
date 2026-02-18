@@ -65,12 +65,13 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
 
     // Retrieve secrets and parameters.
     info!("retrieving parameters");
-    let ecs_cluster_arn = get_aws_parameter_value("BNA_CLUSTER_ARN").await?;
-    let vpc_subnets = get_aws_parameter_value("PUBLIC_SUBNETS").await?;
-    let task_security_group = get_aws_parameter_value("BNA_TASK_SECURITY_GROUP").await?;
-    let task_definition = get_aws_parameter_value("BNA_TASK_DEFINITION").await?;
-    let s3_bucket = get_aws_parameter_value("BNA_BUCKET").await?;
-    let cache_directory = get_aws_parameter_value("BNA_CACHE_DIRECTORY").await?;
+    let ecs_cluster_arn = get_aws_parameter_value("/bna/analyzer/ecs/cluster/arn").await?;
+    let vpc_subnets = get_aws_parameter_value("/bna/foundations/subnets/public/ids").await?;
+    let task_security_group =
+        get_aws_parameter_value("/bna/analyzer/task/security_group/id").await?;
+    let task_definition = get_aws_parameter_value("/bna/analyzer/task/definition/arn").await?;
+    let s3_bucket = get_aws_parameter_value("/bna/analyzer/s3/results_bucket/name").await?;
+    let cache_directory = get_aws_parameter_value("/bna/analyzer/efs/cache_directory/path").await?;
 
     // Prepare the command.
     info!("Preparing the container command");

@@ -20,7 +20,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
     let analysis_parameters = &event.payload.analysis_parameters;
 
     // Retrieve bna_bucket name.
-    let bna_bucket = get_aws_parameter_value("BNA_BUCKET").await?;
+    let bna_bucket = get_aws_parameter_value("/bna/analyzer/s3/results_bucket/name").await?;
 
     // Read the task inputs.
     info!("Creating S3 directory...");

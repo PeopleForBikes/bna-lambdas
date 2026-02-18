@@ -135,7 +135,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
     let api_hostname = get_aws_parameter_value("BNA_API_HOSTNAME").await?;
 
     // Retrieve bna_bucket name.
-    let bna_bucket = get_aws_parameter_value("BNA_BUCKET").await?;
+    let bna_bucket = get_aws_parameter_value("/bna/analyzer/s3/results_bucket/name").await?;
 
     // Create an authenticated BNA client.
     let client_authd = create_service_account_bna_client(&api_hostname).await?;
