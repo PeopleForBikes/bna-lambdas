@@ -1,0 +1,59 @@
+name: production-deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/lambda-deployment-production.yml"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "lambdas/**"
+
+permissions:
+  # This is required for requesting the JWT.
+  id-token: write
+  # This is required for actions/checkout.
+  contents: read
+
+concurrency:
+  # Ensure sequential run per repository, i.e. 1 deployment at a time.
+  group: ${{ github.repository }}
+  # Ensure new runs will wait until the lock is released.
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+      - name: Install cargo lambda
+        run: pip install cargo-lambda
+
+      # Configure AWS and deploy the lambdas.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # v6.0.0
+        with:
+          role-to-assume: ${{ secrets.FEDERATED_GITHUB_ROLE_ARN_PRODUCTION }}
+          aws-region: ${{ secrets.AWS_REGION_PRODUCTION }}
+
+      # Build the lambdas in release mode and deploy them.
+      - name: Build all lambdas
+        run: cd lambdas && cargo lambda build --release
+      - name: deploy lambdas
+        run: |
+          LAMBDAS="bna-fargate-run
+          bna-fargate-status
+          bna-prepare-destination
+          bna-save-results
+          bna-sqs-parse
+          bna-teardown
+          scorecard
+          "
+          echo $LAMBDAS \
+          | xargs -n1 -t \
+            cargo lambda deploy \
+            --runtime provided.al2023 \
+            --iam-role ${{ secrets.LAMBDA_ROLE_ARN_PRODUCTION }}

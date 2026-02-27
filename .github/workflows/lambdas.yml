@@ -7,7 +7,7 @@ defaults:
 on:
   pull_request:
     paths:
-      - ".github/workflows/lambdas.yml"
+      - ".github/workflows/**"
       - "lambdas/**"
       - "Cargo.toml"
       - "Cargo.lock"
