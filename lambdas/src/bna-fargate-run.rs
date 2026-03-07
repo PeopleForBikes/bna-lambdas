@@ -31,7 +31,7 @@ const BNA_EXPERIMENTAL: &str = "1";
 
 async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, Error> {
     // Retrieve API hostname.
-    let api_hostname = get_aws_parameter_value("BNA_API_HOSTNAME").await?;
+    let api_hostname = get_aws_parameter_value("/bna/api/hostname").await?;
 
     // Create an authenticated BNA client.
     let client_authd = create_service_account_bna_client(&api_hostname).await?;
