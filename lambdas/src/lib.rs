@@ -86,7 +86,7 @@ pub struct AppClientCredentials {
 
 /// Retrieve service account credentials.
 pub async fn get_service_account_credentials() -> Result<AppClientCredentials, bnacore::Error> {
-    const SERVICE_ACCOUNT_CREDENTIALS: &str = "BROKENSPOKE_ANALYZER_SERVICE_ACCOUNT_CREDENTIALS";
+    const SERVICE_ACCOUNT_CREDENTIALS: &str = "/bna/secrets/api/service_account/credentials";
     let client_id = get_aws_secrets_value(SERVICE_ACCOUNT_CREDENTIALS, "client_id").await?;
     let client_secret = get_aws_secrets_value(SERVICE_ACCOUNT_CREDENTIALS, "client_secret").await?;
     Ok(AppClientCredentials {
@@ -98,8 +98,7 @@ pub async fn get_service_account_credentials() -> Result<AppClientCredentials, b
 pub async fn authenticate(
     credentials: &AppClientCredentials,
 ) -> Result<AuthResponse, bnacore::Error> {
-    const COGNITO_HOSTNAME: &str = "BNA_COGNITO_HOSTNAME";
-    let cognito_hostname = get_aws_parameter_value(COGNITO_HOSTNAME).await?;
+    let cognito_hostname = get_aws_parameter_value("/bna/api/cognito/hostname").await?;
     let token_endpoint = format!("{cognito_hostname}/oauth2/token");
     Ok(Client::new()
         .post(token_endpoint)

@@ -132,7 +132,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
 
     info!("Retrieve secrets and parameters...");
     // Retrieve API hostname.
-    let api_hostname = get_aws_parameter_value("BNA_API_HOSTNAME").await?;
+    let api_hostname = get_aws_parameter_value("/bna/api/hostname").await?;
 
     // Retrieve bna_bucket name.
     let bna_bucket = get_aws_parameter_value("/bna/analyzer/s3/results_bucket/name").await?;
