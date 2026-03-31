@@ -78,6 +78,7 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
     let mut container_command: Vec<String> = vec![
         "-vv".to_string(),
         "run".to_string(),
+        "--with-bundle".to_string(),
         "--cache-dir".to_string(),
         cache_directory,
         "--with-export".to_string(),
