@@ -345,7 +345,9 @@ fn scores_to_bnapost(
                 .grocery(overall_scores.get_normalized_score("core_services_grocery"))
                 .hospitals(overall_scores.get_normalized_score("core_services_hospitals"))
                 .pharmacies(overall_scores.get_normalized_score("core_services_pharmacies"))
-                .dentists(overall_scores.get_normalized_score("core_services_social_services"))
+                .social_services(
+                    overall_scores.get_normalized_score("core_services_social_services"),
+                )
                 .score(
                     overall_scores
                         .get_normalized_score("core_services")
@@ -515,33 +517,98 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_overallscores() {
-        let data = r#"id,score_id,score_original,score_normalized,human_explanation
-1,people,0.1917,19.1700,"On average, census blocks in the neighborhood received this population score."
-2,opportunity_employment,0.0826,8.2600,"On average, census blocks in the neighborhood received this employment score."
-3,opportunity_k12_education,0.0831,8.3100,"On average, census blocks in the neighborhood received this K12 schools score."
-4,opportunity_technical_vocational_college,0.0000,0.0000,"On average, census blocks in the neighborhood received this tech/vocational colleges score."
-5,opportunity_higher_education,0.0000,0.0000,"On average, census blocks in the neighborhood received this universities score."
-6,opportunity,0.0829,8.2900,
-7,core_services_doctors,0.0000,0.0000,"On average, census blocks in the neighborhood received this doctors score."
-8,core_services_dentists,0.0000,0.0000,"On average, census blocks in the neighborhood received this dentists score."
-9,core_services_hospitals,0.0518,5.1800,"On average, census blocks in the neighborhood received this hospital score."
-10,core_services_pharmacies,0.0000,0.0000,"On average, census blocks in the neighborhood received this pharmacies score."
-11,core_services_grocery,0.0169,1.6900,"On average, census blocks in the neighborhood received this grocery score."
-12,core_services_social_services,0.0000,0.0000,"On average, census blocks in the neighborhood received this social services score."
-13,core_services,0.0324,3.2400,
-14,retail,0.0000,0.0000,"On average, census blocks in the neighborhood received this retail score."
-15,recreation_parks,0.0713,7.1300,"On average, census blocks in the neighborhood received this parks score."
-16,recreation_trails,0.0000,0.0000,"On average, census blocks in the neighborhood received this trails score."
-17,recreation_community_centers,0.0000,0.0000,"On average, census blocks in the neighborhood received this community centers score."
-18,recreation,0.0713,7.1300,
-19,transit,0.0000,0.0000,"On average, census blocks in the neighborhood received this transit score."
-20,overall_score,0.0893,8.9300,
-21,population_total,2960.0000,,Total population of boundary
-22,total_miles_low_stress,9.3090,9.3000,Total low-stress miles
-23,total_miles_high_stress,64.5092,64.5000,Total high-stress miles"#;
+    fn test_parse_overall_scores() {
+        let data = r#"""id,score_id,score_original,score_normalized,human_explanation
+    1,people,0.1917,19.1700,"On average, census blocks in the neighborhood received this population score."
+    2,opportunity_employment,0.0826,8.2600,"On average, census blocks in the neighborhood received this employment score."
+    3,opportunity_k12_education,0.0831,8.3100,"On average, census blocks in the neighborhood received this K12 schools score."
+    4,opportunity_technical_vocational_college,0.0001,0.0100,"On average, census blocks in the neighborhood received this tech/vocational colleges score."
+    5,opportunity_higher_education,0.0002,0.0200,"On average, census blocks in the neighborhood received this universities score."
+    6,opportunity,0.0829,8.2900,
+    7,core_services_doctors,0.0003,0.0300,"On average, census blocks in the neighborhood received this doctors score."
+    8,core_services_dentists,0.0004,0.0400,"On average, census blocks in the neighborhood received this dentists score."
+    9,core_services_hospitals,0.0518,5.1800,"On average, census blocks in the neighborhood received this hospital score."
+    10,core_services_pharmacies,0.0005,0.0500,"On average, census blocks in the neighborhood received this pharmacies score."
+    11,core_services_grocery,0.0169,1.6900,"On average, census blocks in the neighborhood received this grocery score."
+    12,core_services_social_services,0.0006,0.0600,"On average, census blocks in the neighborhood received this social services score."
+    13,core_services,0.0324,3.2400,
+    14,retail,0.0007,0.0700,"On average, census blocks in the neighborhood received this retail score."
+    15,recreation_parks,0.0713,7.1300,"On average, census blocks in the neighborhood received this parks score."
+    16,recreation_trails,0.0008,0.0800,"On average, census blocks in the neighborhood received this trails score."
+    17,recreation_community_centers,0.0009,0.0900,"On average, census blocks in the neighborhood received this community centers score."
+    18,recreation,0.0713,7.1300,
+    19,transit,0.0010,0.1000,"On average, census blocks in the neighborhood received this transit score."
+    20,overall_score,0.0893,8.9300,
+    21,population_total,2960.0000,,Total population of boundary
+    22,total_miles_low_stress,9.3090,9.3000,Total low-stress miles
+    23,total_miles_high_stress,64.5092,64.5000,Total high-stress miles"""#;
         let scores = parse_overall_scores(data.as_bytes()).unwrap();
-        assert_eq!(scores.0.len(), 23)
+        assert_eq!(scores.0.len(), 23);
+
+        // Verify all parsed values
+        assert_eq!(scores.get_population(), 2960);
+        // assert_eq!(scores.get_pop_size(), 2);
+        assert_eq!(scores.get_normalized_score("people"), Some(19.17));
+        assert_eq!(
+            scores.get_normalized_score("opportunity_employment"),
+            Some(8.26)
+        );
+        assert_eq!(
+            scores.get_normalized_score("opportunity_k12_education"),
+            Some(8.31)
+        );
+        assert_eq!(
+            scores.get_normalized_score("opportunity_technical_vocational_college"),
+            Some(0.01)
+        );
+        assert_eq!(
+            scores.get_normalized_score("opportunity_higher_education"),
+            Some(0.02)
+        );
+        assert_eq!(scores.get_normalized_score("opportunity"), Some(8.29));
+        assert_eq!(
+            scores.get_normalized_score("core_services_doctors"),
+            Some(0.03)
+        );
+        assert_eq!(
+            scores.get_normalized_score("core_services_dentists"),
+            Some(0.04)
+        );
+        assert_eq!(
+            scores.get_normalized_score("core_services_hospitals"),
+            Some(5.18)
+        );
+        assert_eq!(
+            scores.get_normalized_score("core_services_pharmacies"),
+            Some(0.05)
+        );
+        assert_eq!(
+            scores.get_normalized_score("core_services_grocery"),
+            Some(1.69)
+        );
+        assert_eq!(
+            scores.get_normalized_score("core_services_social_services"),
+            Some(0.06)
+        );
+        assert_eq!(scores.get_normalized_score("core_services"), Some(3.24));
+        assert_eq!(scores.get_normalized_score("retail"), Some(0.07));
+        assert_eq!(scores.get_normalized_score("recreation_parks"), Some(7.13));
+        assert_eq!(scores.get_normalized_score("recreation_trails"), Some(0.08));
+        assert_eq!(
+            scores.get_normalized_score("recreation_community_centers"),
+            Some(0.09)
+        );
+        assert_eq!(scores.get_normalized_score("recreation"), Some(7.13));
+        assert_eq!(scores.get_normalized_score("transit"), Some(0.1));
+        assert_eq!(scores.get_normalized_score("overall_score"), Some(8.93));
+        assert_eq!(
+            scores.get_normalized_score("total_miles_low_stress"),
+            Some(9.3)
+        );
+        assert_eq!(
+            scores.get_normalized_score("total_miles_high_stress"),
+            Some(64.5)
+        );
     }
 
     #[test]
@@ -553,6 +620,259 @@ sharrow,19.06297888351705
 buffered_lane,0.052071779313949434"#;
         let mileages = parse_mileages(data.as_bytes()).unwrap();
         assert_eq!(mileages.0.len(), 4)
+    }
+
+    #[test]
+    fn test_scores_to_bnapost() {
+        let mut overall_scores = OverallScores::new();
+        overall_scores.0.insert(
+            "population_total".to_string(),
+            OverallScore {
+                score_id: "population_total".to_string(),
+                score_original: Some(100000.0),
+                score_normalized: None,
+            },
+        );
+        overall_scores.0.insert(
+            "overall_score".to_string(),
+            OverallScore {
+                score_id: "overall_score".to_string(),
+                score_original: None,
+                score_normalized: Some(85.0),
+            },
+        );
+        // Core services
+        overall_scores.0.insert(
+            "core_services_dentists".to_string(),
+            OverallScore {
+                score_id: "core_services_dentists".to_string(),
+                score_original: None,
+                score_normalized: Some(10.0),
+            },
+        );
+        overall_scores.0.insert(
+            "core_services_doctors".to_string(),
+            OverallScore {
+                score_id: "core_services_doctors".to_string(),
+                score_original: None,
+                score_normalized: Some(20.0),
+            },
+        );
+        overall_scores.0.insert(
+            "core_services_grocery".to_string(),
+            OverallScore {
+                score_id: "core_services_grocery".to_string(),
+                score_original: None,
+                score_normalized: Some(30.0),
+            },
+        );
+        overall_scores.0.insert(
+            "core_services_hospitals".to_string(),
+            OverallScore {
+                score_id: "core_services_hospitals".to_string(),
+                score_original: None,
+                score_normalized: Some(40.0),
+            },
+        );
+        overall_scores.0.insert(
+            "core_services_pharmacies".to_string(),
+            OverallScore {
+                score_id: "core_services_pharmacies".to_string(),
+                score_original: None,
+                score_normalized: Some(50.0),
+            },
+        );
+        overall_scores.0.insert(
+            "core_services_social_services".to_string(),
+            OverallScore {
+                score_id: "core_services_social_services".to_string(),
+                score_original: None,
+                score_normalized: Some(60.0),
+            },
+        );
+        overall_scores.0.insert(
+            "core_services".to_string(),
+            OverallScore {
+                score_id: "core_services".to_string(),
+                score_original: None,
+                score_normalized: Some(50.0),
+            },
+        );
+        // Opportunity
+        overall_scores.0.insert(
+            "opportunity_employment".to_string(),
+            OverallScore {
+                score_id: "opportunity_employment".to_string(),
+                score_original: None,
+                score_normalized: Some(70.0),
+            },
+        );
+        overall_scores.0.insert(
+            "opportunity_higher_education".to_string(),
+            OverallScore {
+                score_id: "opportunity_higher_education".to_string(),
+                score_original: None,
+                score_normalized: Some(80.0),
+            },
+        );
+        overall_scores.0.insert(
+            "opportunity_k12_education".to_string(),
+            OverallScore {
+                score_id: "opportunity_k12_education".to_string(),
+                score_original: None,
+                score_normalized: Some(90.0),
+            },
+        );
+        overall_scores.0.insert(
+            "opportunity_technical_vocational_college".to_string(),
+            OverallScore {
+                score_id: "opportunity_technical_vocational_college".to_string(),
+                score_original: None,
+                score_normalized: Some(100.0),
+            },
+        );
+        overall_scores.0.insert(
+            "opportunity".to_string(),
+            OverallScore {
+                score_id: "opportunity".to_string(),
+                score_original: None,
+                score_normalized: Some(60.0),
+            },
+        );
+        // People
+        overall_scores.0.insert(
+            "people".to_string(),
+            OverallScore {
+                score_id: "people".to_string(),
+                score_original: None,
+                score_normalized: Some(110.0),
+            },
+        );
+        // Recreation
+        overall_scores.0.insert(
+            "recreation_community_centers".to_string(),
+            OverallScore {
+                score_id: "recreation_community_centers".to_string(),
+                score_original: None,
+                score_normalized: Some(120.0),
+            },
+        );
+        overall_scores.0.insert(
+            "recreation_parks".to_string(),
+            OverallScore {
+                score_id: "recreation_parks".to_string(),
+                score_original: None,
+                score_normalized: Some(130.0),
+            },
+        );
+        overall_scores.0.insert(
+            "recreation_trails".to_string(),
+            OverallScore {
+                score_id: "recreation_trails".to_string(),
+                score_original: None,
+                score_normalized: Some(140.0),
+            },
+        );
+        overall_scores.0.insert(
+            "recreation".to_string(),
+            OverallScore {
+                score_id: "recreation".to_string(),
+                score_original: None,
+                score_normalized: Some(70.0),
+            },
+        );
+        // Retail
+        overall_scores.0.insert(
+            "retail".to_string(),
+            OverallScore {
+                score_id: "retail".to_string(),
+                score_original: None,
+                score_normalized: Some(150.0),
+            },
+        );
+        // Transit
+        overall_scores.0.insert(
+            "transit".to_string(),
+            OverallScore {
+                score_id: "transit".to_string(),
+                score_original: None,
+                score_normalized: Some(160.0),
+            },
+        );
+        // Infrastructure
+        overall_scores.0.insert(
+            "total_miles_high_stress".to_string(),
+            OverallScore {
+                score_id: "total_miles_high_stress".to_string(),
+                score_original: None,
+                score_normalized: Some(170.0),
+            },
+        );
+        overall_scores.0.insert(
+            "total_miles_low_stress".to_string(),
+            OverallScore {
+                score_id: "total_miles_low_stress".to_string(),
+                score_original: None,
+                score_normalized: Some(180.0),
+            },
+        );
+
+        let mut mileages = Mileages::new();
+        mileages.0.insert("buffered_lane".to_string(), 10.0);
+        mileages.0.insert("lane".to_string(), 20.0);
+        mileages.0.insert("path".to_string(), 30.0);
+        mileages.0.insert("sharrow".to_string(), 40.0);
+        mileages.0.insert("track".to_string(), 50.0);
+
+        let version = "1.0".to_string();
+        let city_id = Uuid::new_v4();
+
+        let rating_post_builder =
+            scores_to_bnapost(overall_scores, mileages, version.clone(), city_id);
+        let rating_post: RatingPost = rating_post_builder.try_into().unwrap();
+
+        assert_eq!(rating_post.city_id, city_id);
+        assert_eq!(rating_post.population, 100000);
+        assert_eq!(rating_post.pop_size, 1); // 100000 is between 50000 and 300000
+        assert_eq!(rating_post.version, version);
+        assert_eq!(rating_post.score, 85.0);
+        // Core services
+        assert_eq!(rating_post.core_services.dentists, Some(10.0));
+        assert_eq!(rating_post.core_services.doctors, Some(20.0));
+        assert_eq!(rating_post.core_services.grocery, Some(30.0));
+        assert_eq!(rating_post.core_services.hospitals, Some(40.0));
+        assert_eq!(rating_post.core_services.pharmacies, Some(50.0));
+        assert_eq!(rating_post.core_services.social_services, Some(60.0));
+        assert_eq!(rating_post.core_services.score, Some(50.0));
+        // Infrastructure
+        assert_eq!(rating_post.infrastructure.high_stress_miles, Some(170.0));
+        assert_eq!(rating_post.infrastructure.low_stress_miles, Some(180.0));
+        // Opportunity
+        assert_eq!(rating_post.opportunity.employment, Some(70.0));
+        assert_eq!(rating_post.opportunity.higher_education, Some(80.0));
+        assert_eq!(rating_post.opportunity.k12_education, Some(90.0));
+        assert_eq!(
+            rating_post.opportunity.technical_vocational_college,
+            Some(100.0)
+        );
+        assert_eq!(rating_post.opportunity.score, Some(60.0));
+        // People
+        assert_eq!(rating_post.people.people, Some(110.0));
+        // Recreation
+        assert_eq!(rating_post.recreation.community_centers, Some(120.0));
+        assert_eq!(rating_post.recreation.parks, Some(130.0));
+        assert_eq!(rating_post.recreation.trails, Some(140.0));
+        assert_eq!(rating_post.recreation.score, Some(70.0));
+        // Retail
+        assert_eq!(rating_post.retail.retail, Some(150.0));
+        // Transit
+        assert_eq!(rating_post.transit.transit, Some(160.0));
+        // Measure
+        assert_eq!(rating_post.measure.buffered_lane, Some(10.0));
+        assert_eq!(rating_post.measure.lane, Some(20.0));
+        assert_eq!(rating_post.measure.path, Some(30.0));
+        assert_eq!(rating_post.measure.sharrow, Some(40.0));
+        assert_eq!(rating_post.measure.track, Some(50.0));
     }
 
     // #[test]
