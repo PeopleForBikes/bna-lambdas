@@ -2,19 +2,18 @@ use aws_config::{BehaviorVersion, SdkConfig};
 use aws_smithy_types_convert::date_time::DateTimeExt;
 use bnaclient::types::{
     builder::{self},
-    BnaPipelinePatch, BnaPipelineStep, City, CityPost, CoreServices, Country, Infrastructure,
-    Measure, Opportunity, People, PipelineStatus, RatingPost, Recreation, Retail, Transit,
+    BnaPipelinePatch, BnaPipelineStep, City, CityPost, CoreServices, Infrastructure, Measure,
+    Opportunity, People, PipelineStatus, RatingPost, Recreation, Retail, Transit,
 };
 use bnacore::aws::get_aws_parameter_value;
 use bnalambdas::{create_service_account_bna_client, AnalysisParameters, Context, Fargate, AWSS3};
 use csv::ReaderBuilder;
-use heck::ToTitleCase;
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
 use simple_error::SimpleError;
-use std::{collections::HashMap, io::Write, str::FromStr};
+use std::{collections::HashMap, io::Write};
 use tracing::info;
 use uuid::Uuid;
 
@@ -28,6 +27,106 @@ struct TaskInput {
     aws_s3: AWSS3,
     context: Context,
     fargate: Fargate,
+}
+
+async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
+    // Read the task inputs.
+    info!("Reading input...");
+    let analysis_parameters = &event.payload.analysis_parameters;
+    let aws_s3 = &event.payload.aws_s3;
+    let state_machine_context = &event.payload.context;
+    let state_machine_id = state_machine_context.id;
+    let fargate = &event.payload.fargate;
+
+    info!("Retrieve secrets and parameters...");
+    // Retrieve API hostname.
+    let api_hostname = get_aws_parameter_value("/bna/api/hostname").await?;
+
+    // Retrieve bna_bucket name.
+    let bna_bucket = get_aws_parameter_value("/bna/analyzer/s3/results_bucket/name").await?;
+
+    // Create an authenticated BNA client.
+    let client_authd = create_service_account_bna_client(&api_hostname).await?;
+
+    // Prepare the AWS configuration.
+    let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+
+    // Configure the S3 client.
+    info!("Configure the S3 client...");
+    let s3_client = aws_sdk_s3::Client::new(&config);
+
+    // Download the CSV file with the results.
+    let scores_csv = format!(
+        "{}/neighborhood_overall_scores.csv",
+        aws_s3.destination.clone()
+    );
+    info!(
+        "Download the CSV file with the results from {}...",
+        scores_csv
+    );
+    let buffer = fetch_s3_object_as_bytes(&s3_client, &bna_bucket, &scores_csv).await?;
+
+    // Parse the results.
+    info!("Parse the results...");
+    let overall_scores = parse_overall_scores(buffer.as_slice())?;
+
+    // Download the mileage CSV file.
+    let mileage_csv = format!("{}/mileage.csv", aws_s3.destination.clone());
+    info!(
+        "Download the CSV file with the mileage from {}...",
+        mileage_csv
+    );
+    let buffer = fetch_s3_object_as_bytes(&s3_client, &bna_bucket, &mileage_csv).await?;
+
+    // Parse the mileages.
+    info!("Parse the results...");
+    let mileages = parse_mileages(buffer.as_slice())?;
+
+    // Query city.
+    info!("Check for existing city...");
+    let country = &analysis_parameters.country;
+    let region = match &analysis_parameters.region {
+        Some(region) => region,
+        None => country,
+    };
+    let name = &analysis_parameters.city;
+    let city = get_or_create_city(&client_authd, country, region, name).await?;
+
+    // Convert the overall scores to a BNAPost struct.
+    let version = aws_s3.get_version();
+    let rating_post = scores_to_bnapost(overall_scores, mileages, version, city.id);
+
+    // Post a new entry via the API.
+    info!("Post a new BNA entry via the API...");
+    info!("New entry: {:?}", &rating_post);
+    client_authd.post_rating().body(rating_post).send().await?;
+
+    // Compute the time it took to run the fargate task and its cost;
+    let (started_at, stopped_at, cost) = update_fargate_details(&config, fargate).await;
+
+    // Update the pipeline status.
+    info!("updating pipeline...");
+    let start_time = started_at
+        .to_chrono_utc()
+        .expect("there must be a start time");
+    let end_time = stopped_at
+        .to_chrono_utc()
+        .expect("there must be an end time");
+    let _r = client_authd
+        .patch_pipelines_bna()
+        .pipeline_id(state_machine_id)
+        .body(
+            BnaPipelinePatch::builder()
+                .cost(cost.to_string())
+                .end_time(end_time)
+                .start_time(start_time)
+                .status(PipelineStatus::Completed)
+                .step(BnaPipelineStep::Cleanup),
+        )
+        .send()
+        .await?;
+
+    Ok(())
 }
 
 #[derive(Deserialize, Clone)]
@@ -121,106 +220,6 @@ impl Mileages {
     }
 }
 
-async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
-    // Read the task inputs.
-    info!("Reading input...");
-    let analysis_parameters = &event.payload.analysis_parameters;
-    let aws_s3 = &event.payload.aws_s3;
-    let state_machine_context = &event.payload.context;
-    let state_machine_id = state_machine_context.id;
-    let fargate = &event.payload.fargate;
-
-    info!("Retrieve secrets and parameters...");
-    // Retrieve API hostname.
-    let api_hostname = get_aws_parameter_value("/bna/api/hostname").await?;
-
-    // Retrieve bna_bucket name.
-    let bna_bucket = get_aws_parameter_value("/bna/analyzer/s3/results_bucket/name").await?;
-
-    // Create an authenticated BNA client.
-    let client_authd = create_service_account_bna_client(&api_hostname).await?;
-
-    // Prepare the AWS configuration.
-    let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
-
-    // Configure the S3 client.
-    info!("Configure the S3 client...");
-    let s3_client = aws_sdk_s3::Client::new(&config);
-
-    // Download the CSV file with the results.
-    let scores_csv = format!(
-        "{}/neighborhood_overall_scores.csv",
-        aws_s3.destination.clone()
-    );
-    info!(
-        "Download the CSV file with the results from {}...",
-        scores_csv
-    );
-    let buffer = fetch_s3_object_as_bytes(&s3_client, &bna_bucket, &scores_csv).await?;
-
-    // Parse the results.
-    info!("Parse the results...");
-    let overall_scores = parse_overall_scores(buffer.as_slice())?;
-
-    // Download the mileage CSV file.
-    let mileage_csv = format!("{}/mileage.csv", aws_s3.destination.clone());
-    info!(
-        "Download the CSV file with the mileage from {}...",
-        mileage_csv
-    );
-    let buffer = fetch_s3_object_as_bytes(&s3_client, &bna_bucket, &mileage_csv).await?;
-
-    // Parse the mileages.
-    info!("Parse the results...");
-    let mileages = parse_mileages(buffer.as_slice())?;
-
-    // Query city.
-    info!("Check for existing city...");
-    let country = &analysis_parameters.country;
-    let region = match &analysis_parameters.region {
-        Some(region) => region,
-        None => country,
-    };
-    let name = &analysis_parameters.city;
-    let city_id = get_or_create_city(&client_authd, country, region, name).await?;
-
-    // Convert the overall scores to a BNAPost struct.
-    let version = aws_s3.get_version();
-    let rating_post = scores_to_bnapost(overall_scores, mileages, version, city_id);
-
-    // Post a new entry via the API.
-    info!("Post a new BNA entry via the API...");
-    info!("New entry: {:?}", &rating_post);
-    client_authd.post_rating().body(rating_post).send().await?;
-
-    // Compute the time it took to run the fargate task and its cost;
-    let (started_at, stopped_at, cost) = update_fargate_details(&config, fargate).await;
-
-    // Update the pipeline status.
-    info!("updating pipeline...");
-    let start_time = started_at
-        .to_chrono_utc()
-        .expect("there must be a start time");
-    let end_time = stopped_at
-        .to_chrono_utc()
-        .expect("there must be an end time");
-    let _r = client_authd
-        .patch_pipelines_bna()
-        .pipeline_id(state_machine_id)
-        .body(
-            BnaPipelinePatch::builder()
-                .cost(cost.to_string())
-                .end_time(end_time)
-                .start_time(start_time)
-                .status(PipelineStatus::Completed)
-                .step(BnaPipelineStep::Cleanup),
-        )
-        .send()
-        .await?;
-
-    Ok(())
-}
-
 fn parse_overall_scores(data: &[u8]) -> Result<OverallScores, Error> {
     let mut overall_scores = OverallScores::new();
     let mut rdr = ReaderBuilder::new().flexible(true).from_reader(data);
@@ -249,45 +248,52 @@ async fn get_or_create_city(
     country: &str,
     region: &str,
     name: &str,
-) -> Result<Uuid, Error> {
-    let normalized_country = Country::from_str(country.to_title_case().as_str())?;
-    let response = client
-        .get_city()
-        .country(normalized_country)
-        .region(region.to_title_case())
-        .name(name.to_title_case())
-        .send()
-        .await?;
-    let city: Option<City> = match response.status().as_u16() {
-        x if x < 400 => Some(response.into_inner()),
-        404 => None,
-        _ => {
-            return Err(Box::new(SimpleError::new(format!(
-                "cannot retrieve city: {} {}",
-                response.status(),
-                response.status().as_str()
-            ))))
-        }
-    };
+) -> Result<City, Error> {
+    let city = get_city(client, country, region, name).await?;
     info!("City: {:#?}", city);
-    dbg!(&city);
 
-    let city_id: Uuid;
     if let Some(city) = city {
-        info!("The city exists, update the population...");
-        city_id = city.id;
+        info!("The city exists already.");
+        Ok(city)
     } else {
         info!("Create a new city...");
         // Create the city.
         let c = CityPost::builder()
-            .country(normalized_country)
-            .state(region.to_title_case())
-            .name(name.to_title_case());
+            .country(country)
+            .state(region)
+            .name(name);
         let city = client.post_city().body(c).send().await?;
-        city_id = city.id;
+        Ok(city.into_inner())
     }
+}
 
-    Ok(city_id)
+/// Get a city if it exists.
+async fn get_city(
+    client: &bnaclient::Client,
+    country: &str,
+    region: &str,
+    name: &str,
+) -> Result<Option<City>, Error> {
+    let response = client
+        .get_city()
+        .country(country)
+        .region(region)
+        .name(name)
+        .send()
+        .await;
+    match response {
+        Ok(r) => Ok(Some(r.into_inner())),
+        Err(e) => {
+            if let Some(status) = e.status() {
+                if status == reqwest::StatusCode::NOT_FOUND {
+                    return Ok(None);
+                }
+            }
+            Err(Box::new(SimpleError::new(format!(
+                "API error, cannot retrieve city {country}, {region}, {name} :{e}"
+            ))))
+        }
+    }
 }
 
 struct FargateTime {
@@ -476,6 +482,20 @@ mod tests {
     use super::*;
     use aws_sdk_s3::primitives::DateTime;
     use test_log::test;
+
+    // #[tokio::test]
+    // #[test_log::test]
+    // async fn test_get_city() {
+    //     let client = bnaclient::Client::new("http://localhost:3000");
+    //     let city = get_city(&client, "Brazil", "remyregion", "remyburg")
+    //         .await
+    //         .unwrap();
+    //     dbg!(&city);
+    //     // assert!(city.is_none());
+
+    //     let city = get_or_create_city(&client, "Brazil", "remyregion", "remyburg").await;
+    //     dbg!(&city);
+    // }
 
     #[test]
     fn test_input_deserialization() {

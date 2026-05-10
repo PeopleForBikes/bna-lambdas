@@ -46,6 +46,7 @@ usvg = { workspace = true }
 
 [dev-dependencies]
 test-log = { workspace = true, features = ["trace"] }
+# tracing-test = "0.2.6"
 
 [[bin]]
 name = "bna-fargate-run"
