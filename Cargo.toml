@@ -8,7 +8,7 @@ aws_lambda_events = "1.2.0"
 aws-config = "1.8.16"
 aws-sdk-ecs = "1.124.0"
 aws-sdk-s3 = "1.132.0"
-aws-sdk-sqs = "1.98.0"
+aws-sdk-sqs = "1.99.0"
 aws-smithy-types-convert = "0.60.14"
 bnaclient = { git = "https://github.com/PeopleForBikes/bna-api", rev = "65d97e6" }
 bnacore = { git = "https://github.com/PeopleForBikes/brokenspoke", rev = "148cdc1" }
