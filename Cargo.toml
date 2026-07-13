@@ -9,7 +9,7 @@ aws-config = "1.8.18"
 aws-sdk-ecs = "1.124.0"
 aws-sdk-s3 = "1.134.0"
 aws-sdk-sqs = "1.99.0"
-aws-smithy-types-convert = "0.60.14"
+aws-smithy-types-convert = "0.61.1"
 bnaclient = { git = "https://github.com/PeopleForBikes/bna-api", rev = "65d97e6" }
 bnacore = { git = "https://github.com/PeopleForBikes/brokenspoke", rev = "148cdc1" }
 chrono = "0.4.44"
