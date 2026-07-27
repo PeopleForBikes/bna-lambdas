@@ -2385,7 +2385,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.6.3",
+ "socket2 0.5.10",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -2804,9 +2804,9 @@ dependencies = [
 
 [[package]]
 name = "lambda_http"
-version = "1.2.1"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f7f1395a7854d32e6f0c366448740dceb2e1bcb90bbbbf2785152e0ca3283e0"
+checksum = "e69eb3117d123f471f7d2b5d02b5afe150f54f9f7cff3264e578c9dd03675ad9"
 dependencies = [
  "aws_lambda_events",
  "bytes",
