@@ -90,7 +90,8 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<(), Error> {
         None => country,
     };
     let name = &analysis_parameters.city;
-    let city = get_or_create_city(&client_authd, country, region, name).await?;
+    let city_speed_limit = analysis_parameters.city_speed_limit;
+    let city = get_or_create_city(&client_authd, country, region, name, city_speed_limit).await?;
 
     // Convert the overall scores to a BNAPost struct.
     let version = aws_s3.get_version();
@@ -248,6 +249,7 @@ async fn get_or_create_city(
     country: &str,
     region: &str,
     name: &str,
+    speed_limit: Option<u32>,
 ) -> Result<City, Error> {
     let city = get_city(client, country, region, name).await?;
     info!("City: {:#?}", city);
@@ -261,7 +263,8 @@ async fn get_or_create_city(
         let c = CityPost::builder()
             .country(country)
             .state(region)
-            .name(name);
+            .name(name)
+            .speed_limit(speed_limit.map(|s| s as i32));
         let city = client.post_city().body(c).send().await?;
         Ok(city.into_inner())
     }
@@ -504,7 +507,8 @@ mod tests {
             "country": "usa",
             "city": "santa rosa",
             "region": "new mexico",
-            "fips_code": "3570670"
+            "fips_code": "3570670",
+            "city_speed_limit": 25
           },
           "receipt_handle": "AQEBFo+wTTIZdCvaF2KtZN4ZolAGKeKVGSAhQ7BTA9MUirBT/8mprrHIOg8LuWi3LK9Lu1oFDd5GqVmzExGeHlVbmRA3HWd+vy11b1N4qVeHywvUJJT5/G/GVG2jimkHDa31893N0k2HIm2USSsN6Bqw0JI57ac0ymUWJxzkN9/yJQQXg2dmnNn3YuouzQTGpOJnMjv9UnZaHGVjZXV30IWjs9VzUZd9Wnl721B99pF9t1FUeYnAxShtNUZKzbfbNmSmwtKoE+SwohFL0k84cYkJUjgdXw9yEoT2+zEqeGWtU/oSGmbLorPWIiVYubPcwni1Q9KZROUDvBX7sPDwUeYxxhw9SBxz3y4Tg5hH7X99D4tDXbnRJR1v/0aBAs9h/ohfcEjoYmHdYqRL9r2t33SwYg==",
           "context": {
@@ -533,7 +537,8 @@ mod tests {
             "last_status": "STOPPED"
           }
         }"#;
-        let _deserialized = serde_json::from_str::<TaskInput>(json_input).unwrap();
+        let deserialized = serde_json::from_str::<TaskInput>(json_input).unwrap();
+        assert_eq!(deserialized.analysis_parameters.city_speed_limit, Some(25));
     }
 
     #[test]

@@ -116,7 +116,8 @@ mod tests {
               "country": "usa",
               "city": "provincetown",
               "region": "massachusetts",
-              "fips_code": "555535"
+              "fips_code": "555535",
+              "city_speed_limit": 25
             },
             "receipt_handle": "AQEB1tiDaN1qwFbZXhWBUwQmTRsUx06pGNOhVdZe86LABsb95D8oLIbFFcOTWQzc27SbKQ4xWtomueKwT8LjTv60SnjoTIm+bhM52w0LYRhadhdyRzQUNyOBEU18QLM8W2psRUm1bhyfRkPNPCl65uhrdJs1ta62d3n2rVOcLvNHp+EEGNnCenze8Cc9qvptMFohe9p56YBxKubA3f3Btv70FLpTZOSPHIa4aDBADLm9eZ16jN1Jc9GU4JMxeNBp3QAunPVFm94vrLCrprffJj4D83IfcQYIf1T7eYlH/LVQcp+Ihaxtas7qnjxa1W756olM3ppxq6ZjRcbVeAtQtrT/+M6YsAqXrBSS+TTOLqNS8Zn0R8/YqSdE31AUFUPeI6LIaF654LabYh/54hju6xRcyQ==",
 
@@ -140,6 +141,7 @@ mod tests {
           }"#;
         let deserialized = serde_json::from_str::<TaskInput>(json_input).unwrap();
         assert_eq!(deserialized.analysis_parameters.city, "provincetown");
+        assert_eq!(deserialized.analysis_parameters.city_speed_limit, Some(25));
         let _serialized = serde_json::to_string(&deserialized).unwrap();
     }
 }

@@ -94,6 +94,10 @@ async fn function_handler(event: LambdaEvent<TaskInput>) -> Result<TaskOutput, E
         container_command.push(analysis_parameters.region.clone().unwrap());
         container_command.push(analysis_parameters.fips_code.clone().unwrap());
     };
+    if let Some(city_speed_limit) = analysis_parameters.city_speed_limit {
+        container_command.push("--city-speed-limit".to_string());
+        container_command.push(city_speed_limit.to_string());
+    };
 
     info!(container_command = container_command.join(" "));
 
@@ -197,7 +201,8 @@ mod tests {
             "country": "usa",
             "city": "santa rosa",
             "region": "new mexico",
-            "fips_code": "3570670"
+            "fips_code": "3570670",
+            "city_speed_limit": 25
           },
           "receipt_handle": "AQEBMtAMiWSYxry6iA8NH0wHUYvOXNLS00piVRqNYWlI5Cs8RRhd21R+5L46DsJgQtbNyrnUATM6Dw70nQoKQ5nFaU3GjK+Aone90aWVAB7DPcYpnUt9uxKdRLdgeNUAAHvBT+K83cJgHwL2ek/fGHPEBCZGN8CV2ZXEDoY2GFfRB51el+4f61YqsIxOEOpgV0djb2D0B/WzS8i8BznanguRn3bT8iz0RXk60hZjp01PN9ljSqjpFwlXM0TLx3tI1RgVYconH2CGnII9qtWz0A4MciKW0vOnKyA70AfUgDPgFFmw6OTwuPeLedCt6lhpYc7fZUGuRAc/Ozz8uAkEI6eTm2yxh1p0OJzXDoqEEaoFgsHHaHOgulmL5QwhZw3z/lBEDii8g4MTZ6UqekkK9dcxew==",
           "context": {
@@ -221,7 +226,8 @@ mod tests {
             "destination": "usa/new mexico/santa rosa/24.05.3"
           }
         }"#;
-        let _deserialized = serde_json::from_str::<TaskInput>(json_input).unwrap();
+        let deserialized = serde_json::from_str::<TaskInput>(json_input).unwrap();
+        assert_eq!(deserialized.analysis_parameters.city_speed_limit, Some(25));
     }
 
     // #[tokio::test]
