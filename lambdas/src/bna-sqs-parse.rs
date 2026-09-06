@@ -97,5 +97,46 @@ fn test_input_deserialization() {
       "Id": "9ff90cac-0cf5-4923-897f-4416df5e7328"
     }
   }"#;
-    let _deserialized = serde_json::from_str::<TaskInput>(json_input).unwrap();
+    let deserialized = serde_json::from_str::<TaskInput>(json_input).unwrap();
+    assert_eq!(deserialized.messages[0].body.city_speed_limit, None);
+}
+
+#[tokio::test]
+async fn test_handler_defaults_city_speed_limit() {
+    let json_input = r#"{
+    "Messages": [
+      {
+        "Body": "{\n  \"city\": \"santa rosa\",\n  \"country\": \"usa\",\n  \"fips_code\": \"3570670\",\n  \"region\": \"new mexico\"\n}",
+        "Md5OfBody": "a7d2c2a0976976a725f06db3a9b90520",
+        "MessageId": "b53c03f0-6993-4b4e-8815-a84e323a0e4c",
+        "ReceiptHandle": "AQEBig5tn0SKv0mFFajmwh/50mLs1g2hFXGEcblkGGpa3pqmiposxJEsdgInINH3tHwWDQ6C1Xoly7abjNr3G6m88QYZYPYcFf3HnBM2s+zYXsAITrBAA92Z8CGXPvglx04NxgiYLFIegyqKRUmWNE2uwI/ubbpcAMdrCcjXRQ+LjGLHRYR567uW75TZHsAds8GPKJ937pJ9RiSU9hHSrLAjABZD/AWXgGeJ19619w9TOSRFFzKiZRxcWqhDEtasl4YN6mX3+/lY4Gx5/ATPzXmjlIKa33viTURtlMuAEKjJ4gmSFgdIaovSkrl7V+ZbJw85anWCzcQ8rQSqJB2p4aZgX57MBTrIKrgUKDaP7CvASuM27jj8Pou8Ka9bspOhfOHlwPSmxn3AfeYl3ruT1prGoA=="
+      }
+    ],
+    "context": {
+      "Execution": {
+        "StartTime": "2024-02-12T16:45:38.655Z",
+        "Id": "arn:aws:states:us-west-2:123456789012:execution:brokenspoke-analyzer:a0e708f8-3d9f-4749-b4de-20b2c2aab3d2",
+        "RoleArn": "arn:aws:iam::123456789012:role/role",
+        "Name": "a0e708f8-3d9f-4749-b4de-20b2c2aab3d2"
+      },
+      "State": {
+        "EnteredTime": "2024-02-12T16:45:38.881Z",
+        "Name": "BNAContext"
+      },
+      "StateMachine": {
+        "Id": "arn:aws:states:us-west-2:123456789012:stateMachine:brokenspoke-analyzer",
+        "Name": "brokenspoke-analyzer"
+      },
+      "Id": "9ff90cac-0cf5-4923-897f-4416df5e7328"
+    }
+  }"#;
+    let event: LambdaEvent<TaskInput> = LambdaEvent {
+        payload: serde_json::from_str(json_input).unwrap(),
+        context: lambda_runtime::Context::default(),
+    };
+    let output = function_handler(event).await.unwrap();
+    assert_eq!(
+        output.analysis_parameters.city_speed_limit,
+        Some(bnalambdas::DEFAULT_CITY_SPEED_LIMIT)
+    );
 }

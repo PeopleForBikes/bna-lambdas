@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub const BROKENSPOKE_ANALYZER_BUCKET: &str = "brokenspoke-analyzer";
+pub const DEFAULT_FIPS_CODE: &str = "0";
+pub const DEFAULT_CITY_SPEED_LIMIT: u32 = 30;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AnalysisParameters {
@@ -13,6 +15,7 @@ pub struct AnalysisParameters {
     pub city: String,
     pub region: Option<String>,
     pub fips_code: Option<String>,
+    pub city_speed_limit: Option<u32>,
 }
 
 impl AnalysisParameters {
@@ -22,23 +25,25 @@ impl AnalysisParameters {
         city: String,
         region: Option<String>,
         fips_code: Option<String>,
+        city_speed_limit: Option<u32>,
     ) -> Self {
         Self {
             country,
             city,
             region,
-            fips_code: fips_code.or(Some("0".to_string())),
+            fips_code: fips_code.or(Some(DEFAULT_FIPS_CODE.to_string())),
+            city_speed_limit,
         }
     }
 
     /// Create a new simple AnalysisParameter object with only a city and a country.
     pub fn simple(country: String, city: String) -> Self {
-        Self::new(country, city, None, None)
+        Self::new(country, city, None, None, None)
     }
 
     /// Create a new AnalysisParameter object with a city, a country, and a region.
     pub fn with_region(country: String, city: String, region: String) -> Self {
-        Self::new(country, city, Some(region), None)
+        Self::new(country, city, Some(region), None, None)
     }
 
     /// Create a new AnalysisParameter object with a city, a country, a region and a FIPS code.
@@ -48,24 +53,23 @@ impl AnalysisParameters {
         region: String,
         fips_code: String,
     ) -> Self {
-        Self::new(country, city, Some(region), Some(fips_code))
+        Self::new(country, city, Some(region), Some(fips_code), None)
     }
 
     /// Ensure all the parameters are populated appropriately.
     pub fn sanitized(&self) -> Self {
-        let region = match &self.region {
-            Some(region) => Some(region.clone()),
-            None => Some(self.country.clone()),
-        };
-        let fips_code = match &self.fips_code {
-            Some(fips_code) => Some(fips_code.clone()),
-            None => Some("0".to_string()),
-        };
+        let region = self.region.clone().or_else(|| Some(self.country.clone()));
+        let fips_code = self
+            .fips_code
+            .clone()
+            .or_else(|| Some(DEFAULT_FIPS_CODE.to_string()));
+        let city_speed_limit = self.city_speed_limit.or(Some(DEFAULT_CITY_SPEED_LIMIT));
         Self {
             country: self.country.clone(),
             city: self.city.clone(),
             region,
             fips_code,
+            city_speed_limit,
         }
     }
 }
