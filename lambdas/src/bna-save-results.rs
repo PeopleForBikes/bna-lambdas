@@ -264,7 +264,7 @@ async fn get_or_create_city(
             .country(country)
             .state(region)
             .name(name)
-            .speed_limit(speed_limit.map(|s| s as i32));
+            .residential_speed_limit(speed_limit.map(|s| s as i32));
         let city = client.post_city().body(c).send().await?;
         Ok(city.into_inner())
     }
