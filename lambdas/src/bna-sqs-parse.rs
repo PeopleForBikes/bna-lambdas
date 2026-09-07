@@ -102,7 +102,7 @@ fn test_input_deserialization() {
 }
 
 #[tokio::test]
-async fn test_handler_defaults_city_speed_limit() {
+async fn test_handler_leaves_city_speed_limit_none() {
     let json_input = r#"{
     "Messages": [
       {
@@ -135,8 +135,5 @@ async fn test_handler_defaults_city_speed_limit() {
         context: lambda_runtime::Context::default(),
     };
     let output = function_handler(event).await.unwrap();
-    assert_eq!(
-        output.analysis_parameters.city_speed_limit,
-        Some(bnalambdas::DEFAULT_CITY_SPEED_LIMIT)
-    );
+    assert_eq!(output.analysis_parameters.city_speed_limit, None);
 }

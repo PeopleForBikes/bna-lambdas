@@ -7,7 +7,6 @@ use uuid::Uuid;
 
 pub const BROKENSPOKE_ANALYZER_BUCKET: &str = "brokenspoke-analyzer";
 pub const DEFAULT_FIPS_CODE: &str = "0";
-pub const DEFAULT_CITY_SPEED_LIMIT: u32 = 30;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AnalysisParameters {
@@ -63,13 +62,12 @@ impl AnalysisParameters {
             .fips_code
             .clone()
             .or_else(|| Some(DEFAULT_FIPS_CODE.to_string()));
-        let city_speed_limit = self.city_speed_limit.or(Some(DEFAULT_CITY_SPEED_LIMIT));
         Self {
             country: self.country.clone(),
             city: self.city.clone(),
             region,
             fips_code,
-            city_speed_limit,
+            city_speed_limit: self.city_speed_limit,
         }
     }
 }
