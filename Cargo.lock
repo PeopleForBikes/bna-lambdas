@@ -336,9 +336,7 @@ dependencies = [
  "bytes",
  "bytes-utils",
  "fastrand",
- "http 0.2.12",
  "http 1.3.1",
- "http-body 0.4.6",
  "http-body 1.0.1",
  "percent-encoding",
  "pin-project-lite",
@@ -374,9 +372,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-s3"
-version = "1.148.0"
+version = "1.149.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a61c1db3987ab6c8740fb87f248864687d50549401115244a84f02c3047b2d5"
+checksum = "d48257fb0eb1907a02a965ff7d1b910770a6de2c59a2d03461678df989c5cdcd"
 dependencies = [
  "arc-swap",
  "aws-credential-types",
@@ -398,7 +396,6 @@ dependencies = [
  "fastrand",
  "hex",
  "hmac 0.13.0",
- "http 0.2.12",
  "http 1.3.1",
  "http-body 1.0.1",
  "lru",
