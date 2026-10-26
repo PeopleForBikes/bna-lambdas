@@ -959,7 +959,7 @@ dependencies = [
  "csv",
  "libflate",
  "lopdf",
- "minijinja",
+ "minijinja 2.24.0",
  "regex",
  "reqwest",
  "serde",
@@ -993,7 +993,7 @@ dependencies = [
  "image",
  "lambda_http",
  "lambda_runtime",
- "minijinja",
+ "minijinja 3.0.0",
  "reqwest",
  "rust_decimal",
  "rust_decimal_macros",
@@ -3093,6 +3093,12 @@ dependencies = [
  "memo-map",
  "serde",
 ]
+
+[[package]]
+name = "minijinja"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13345868cfa94eadafc067112ff29271380a820d5594d9ee6ba81a8d00ea5dc2"
 
 [[package]]
 name = "minimal-lexical"
