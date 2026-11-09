@@ -407,20 +407,20 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-sqs"
-version = "1.112.0"
+version = "1.117.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2222f7970a8ff4382bc8864f3d5950fa5f866790d32df2bf43ef379d43eb735"
+checksum = "5f7ed69616b7c0c1d13c65dababc557b6540299c25f13d8358a3f2baa77a9ccf"
 dependencies = [
  "arc-swap",
  "aws-credential-types",
  "aws-runtime",
  "aws-smithy-async",
  "aws-smithy-http",
- "aws-smithy-json 0.63.1",
+ "aws-smithy-json 0.65.0",
  "aws-smithy-observability",
  "aws-smithy-runtime",
  "aws-smithy-runtime-api",
- "aws-smithy-schema 0.2.1",
+ "aws-smithy-schema 1.1.0",
  "aws-smithy-types",
  "aws-types",
  "bytes",
@@ -2357,7 +2357,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -2683,7 +2683,7 @@ dependencies = [
  "portable-atomic",
  "portable-atomic-util",
  "serde_core",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.1",
 ]
 
 [[package]]
@@ -4145,7 +4145,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.1",
 ]
 
 [[package]]
